@@ -836,6 +836,7 @@
             display: flex;
             gap: 12px;
             min-width: 0;
+            position: relative; /* For delete button positioning */
         }
         
         .ticket-info img {
@@ -2613,6 +2614,17 @@
         // 🎟️ TICKETS & 🍿 MOVIE NIGHT PLANNER
         // ==========================================
         
+        function formatTimeAMPM(time24) {
+            if (!time24) return '';
+            let [hours, minutes] = time24.split(':');
+            if(!hours || !minutes) return time24;
+            hours = parseInt(hours, 10);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            return `${hours}:${minutes} ${ampm}`;
+        }
+        
         async function analyzeTicketWithGemini(base64Image) {
             const apiKey = ""; // Canvas execution environment injects the key
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -2620,11 +2632,12 @@
             const [header, b64Data] = base64Image.split(',');
             const mimeType = header.split(';')[0].split(':')[1];
             
+            const currentYear = new Date().getFullYear();
             const payload = {
                 contents: [{
                     role: "user",
                     parts: [
-                        { text: "Extract the following details from this movie ticket screenshot: 1. The name of the theater/cinema. 2. The date of the movie (format YYYY-MM-DD). 3. The time of the movie (format HH:MM in 24-hour time). Return ONLY a valid JSON object with the exact keys 'theater', 'date', and 'time'. If a value cannot be found, use an empty string." },
+                        { text: `Extract the movie theater/cinema name, date (in YYYY-MM-DD format, assume the current year is ${currentYear} if missing from the image), and the time (in HH:MM 24-hour format). Return ONLY a raw JSON object with keys: 'theater', 'date', 'time'. Example: {"theater":"AMC Century City", "date":"2026-03-19", "time":"14:00"}` },
                         { inlineData: { mimeType: mimeType, data: b64Data } }
                     ]
                 }],
@@ -2644,7 +2657,9 @@
                     });
                     if (!response.ok) throw new Error("API Error: " + response.statusText);
                     const result = await response.json();
-                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("No text returned");
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
                     return JSON.parse(text);
                 } catch (e) {
                     retries--;
@@ -2655,13 +2670,18 @@
             }
         }
         
-        window.openTicketModal = function() {
-            if(!currentViewedMovie) return;
+        window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '') {
+            if (mId) {
+                currentViewedMovie = { id: mId, title: mTitle, posterPath: mPoster };
+            } else if (!currentViewedMovie) {
+                return showToast("No movie selected!", true);
+            }
+
             if(!currentUser) return showToast("Sign in to save digital tickets!", true);
             
-            document.getElementById('ticket-theater').value = '';
-            document.getElementById('ticket-date').value = new Date().toISOString().split('T')[0];
-            document.getElementById('ticket-time').value = '19:00';
+            document.getElementById('ticket-theater').value = th || '';
+            document.getElementById('ticket-date').value = dt || new Date().toISOString().split('T')[0];
+            document.getElementById('ticket-time').value = tm || '19:00';
             
             document.getElementById('trigger-ticket-upload').style.display = 'flex';
             document.getElementById('cropper-container').style.display = 'none';
@@ -2673,6 +2693,12 @@
             
             closeModal('movie-modal');
             openModal('ticket-builder-modal');
+        }
+        
+        window.openTicketModalFromPlan = function(planId) {
+            const plan = myPlans.find(p => p.id === planId);
+            if(!plan) return;
+            openTicketModal(plan.movieId, plan.title, plan.posterPath, plan.location, plan.date, plan.time);
         }
         
         document.getElementById('ticket-upload-input').addEventListener('change', function(e) {
@@ -2716,16 +2742,18 @@
 
                     try {
                         const data = await analyzeTicketWithGemini(base64ForGemini);
-                        if (data.theater) document.getElementById('ticket-theater').value = data.theater;
-                        if (data.date) document.getElementById('ticket-date').value = data.date;
-                        if (data.time) document.getElementById('ticket-time').value = data.time;
-                        
-                        if (data.theater || data.date || data.time) {
-                            showToast('✨ Ticket details extracted!');
+                        if (data) {
+                            if (data.theater) document.getElementById('ticket-theater').value = data.theater;
+                            if (data.date) document.getElementById('ticket-date').value = data.date;
+                            if (data.time) document.getElementById('ticket-time').value = data.time;
+                            
+                            if (data.theater || data.date || data.time) {
+                                showToast('✨ Ticket details extracted!');
+                            }
                         }
                     } catch(err) {
                         console.error("Gemini Vision failed:", err);
-                        showToast('Could not read ticket text. You can enter details manually.', true);
+                        showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
                         saveBtn.innerText = origText;
                         saveBtn.disabled = false;
@@ -2765,6 +2793,13 @@
             syncTicketsToFirestore();
             renderPlansAndTickets();
         });
+
+        window.deleteTicket = function(ticketId) {
+            myTickets = myTickets.filter(t => String(t.id) !== String(ticketId));
+            syncTicketsToFirestore();
+            renderPlansAndTickets();
+            showToast('Ticket deleted.');
+        }
         
         window.openPlanModal = function() {
             if(!currentViewedMovie) return;
@@ -2896,12 +2931,13 @@
                     
                     return `
                     <div class="ticket">
+                        <button class="remove-btn" style="position: absolute; top: -10px; left: -10px; z-index: 10; width: 28px; height: 28px; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);" onclick="deleteTicket('${t.id}')" title="Delete Ticket">×</button>
                         <div class="ticket-info">
                             <img src="${img}" alt="${escHtml(t.title)}">
                             <div class="ticket-details">
                                 <h4 title="${escHtml(t.title)}">${escHtml(t.title)}</h4>
                                 <p style="color:var(--primary); margin-bottom: 2px;">${escHtml(t.theater)}</p>
-                                <p>${formatDateMDY(t.date)} at ${t.time}</p>
+                                <p>${formatDateMDY(t.date)} at ${formatTimeAMPM(t.time)}</p>
                             </div>
                         </div>
                         <div class="ticket-qr">
@@ -2929,6 +2965,14 @@
                         const badgeStr = isHost ? '<span class="badge" style="background:#444;">You are Hosting</span>' : `<span class="badge" style="background:var(--google-blue);">Invited by ${escHtml(p.hostName)}</span>`;
                         const img = (p.posterPath && p.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${p.posterPath}` : PLACEHOLDER_IMG;
                         
+                        // Check if we have a ticket linked to this plan
+                        const relatedTickets = myTickets.filter(t => String(t.movieId) === String(p.movieId) && t.date === p.date);
+                        const hasTicket = relatedTickets.length > 0;
+                        
+                        const ticketAction = hasTicket 
+                            ? `<div style="color:var(--success-green); font-size:0.85rem; font-weight:bold; display:flex; align-items:center; gap:6px;"><span style="background:var(--success-green); color:#fff; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; font-size:10px;">✓</span> Ticket Saved</div>`
+                            : `<button class="btn btn-tickets" style="margin:0; padding:0.4rem 0.8rem; font-size:0.75rem; width:auto; display:inline-flex;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Add Ticket</button>`;
+                        
                         // Map invitees to friend avatars
                         const guestAvatars = p.invitees.map(uid => {
                             const f = friends.find(x => x.uid === uid);
@@ -2942,16 +2986,19 @@
                                 <div class="plan-info">
                                     <div style="margin-bottom: 6px;">${badgeStr}</div>
                                     <h4>${escHtml(p.title)}</h4>
-                                    <p style="color:white; font-weight:bold;">${formatDateMDY(p.date)} at ${p.time}</p>
+                                    <p style="color:white; font-weight:bold;">${formatDateMDY(p.date)} at ${formatTimeAMPM(p.time)}</p>
                                     <p style="margin-top: 4px; color:var(--gold);">📍 ${escHtml(p.location)}</p>
                                 </div>
                             </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: ${hasTicket ? '10px' : '10px'};">
                                 <div style="font-size: 0.8rem; color:#aaa;">Guests:</div>
                                 <div class="plan-guests">
                                     <img src="${p.hostAvatar || PLACEHOLDER_IMG}" class="plan-guest-avatar" style="border-color:var(--primary);" title="${escHtml(p.hostName)} (Host)">
                                     ${guestAvatars}
                                 </div>
+                            </div>
+                            <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; justify-content:flex-end; align-items:center;">
+                                ${ticketAction}
                             </div>
                         </div>
                         `;
