@@ -2735,7 +2735,7 @@
         // ==========================================
         // 3. WATCHLIST & DIARY MANAGEMENT
         // ==========================================
-        window.addToWatchlist = function (id, title, releaseDate, posterPath) {
+        window.addToWatchlist = async function (id, title, releaseDate, posterPath) {
             if (!watchlist.find(m => String(m.id) === String(id)) && !diary.find(m => String(m.id) === String(
                 id))) {
                 watchlist.push({
@@ -2748,11 +2748,18 @@
                 saveData();
                 syncWatchlistToFirestore();
                 updateListsUI();
-                showToast('Added to Watchlist!');
+                
                 const btn = document.getElementById(`add-btn-${id}`);
                 if (btn) {
                     btn.innerText = '✓ Added';
                     btn.disabled = true;
+                }
+
+                if (localStorage.getItem('gcal_connected') === 'true') {
+                    showToast('Adding to Watchlist & Calendar...');
+                    await syncUnsyncedMovies(true);
+                } else {
+                    showToast('Added to Watchlist!');
                 }
             }
         };
@@ -3432,25 +3439,28 @@
             return cr.id;
         }
 
-        document.getElementById('sync-btn').addEventListener('click', async () => {
+        async function syncUnsyncedMovies(isAuto = false) {
             const syncBtn = document.getElementById('sync-btn');
             const toSync = watchlist.filter(m => !m.synced);
             if (toSync.length === 0) return;
-            syncBtn.disabled = true;
+            
+            if (syncBtn) syncBtn.disabled = true;
+            
             try {
                 accessToken = await getValidToken();
             } catch (e) {
-                showToast('Auth error. Refresh & try again.', true);
+                if (!isAuto) showToast('Auth error. Refresh & try again.', true);
                 return;
             }
+            
             let calId = 'primary';
             try {
                 calId = await getOrCreateMovieCalendar();
             } catch (err) {
                 console.error(err);
             }
-            let ok = 0,
-                fail = 0;
+            
+            let ok = 0, fail = 0;
             for (const movie of toSync) {
                 if (!movie.releaseDate) {
                     fail++;
@@ -3481,17 +3491,29 @@
                     if (res.ok) {
                         ok++;
                         movie.synced = true;
-                        saveData();
-                        syncWatchlistToFirestore();
                     } else fail++;
                 } catch {
                     fail++;
                 }
             }
-            if (fail === 0) showToast(`✓ Synced ${ok} movies!`);
-            else showToast(`Synced ${ok}. Failed: ${fail}.`, true);
+            
+            if (ok > 0) {
+                saveData();
+                syncWatchlistToFirestore();
+            }
+            
             updateListsUI();
-        });
+            
+            if (isAuto) {
+                if (fail === 0) showToast(`✓ Added to Watchlist & Calendar!`);
+                else if (ok > 0) showToast(`Added, but calendar sync partially failed.`, true);
+            } else {
+                if (fail === 0) showToast(`✓ Synced ${ok} movies!`);
+                else showToast(`Synced ${ok}. Failed: ${fail}.`, true);
+            }
+        }
+
+        document.getElementById('sync-btn').addEventListener('click', () => syncUnsyncedMovies(false));
 
         // ==========================================
         // INITIALIZE
