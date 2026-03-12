@@ -2820,7 +2820,7 @@
 
         // ── TICKET: AI Extraction (Primary Method) ──
         async function analyzeTicketWithGemini(base64Image) {
-            const apiKey = ""; // Canvas execution environment injects the key
+            const apiKey = "AIzaSyCyHhbwtNMwZ3O1wsliA60qvN87S_NaMRE"; // Canvas execution environment injects the key
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
             const [header, b64Data] = base64Image.split(',');
