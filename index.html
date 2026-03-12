@@ -67,7 +67,7 @@
         .header-right {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
+            gap: 0.8rem;
         }
 
         #firebase-signin-btn {
@@ -87,12 +87,6 @@
             background: #333;
         }
 
-        #user-profile-header {
-            display: none;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
         #user-avatar {
             width: 32px;
             height: 32px;
@@ -100,22 +94,30 @@
             border: 2px solid var(--primary);
             object-fit: cover;
             flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease;
         }
 
-        #firebase-signout-btn {
-            background: none;
+        #user-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .drawer-signout-btn {
+            background: transparent;
             border: 1px solid #555;
             color: #aaa;
-            padding: 0.3rem 0.7rem;
+            font-size: 0.75rem;
+            padding: 0.4rem 0.8rem;
             border-radius: 20px;
             cursor: pointer;
-            font-size: 0.75rem;
             transition: all 0.2s;
+            font-weight: bold;
         }
 
-        #firebase-signout-btn:hover {
+        .drawer-signout-btn:hover {
             border-color: var(--primary);
             color: #fff;
+            background: rgba(229, 9, 20, 0.1);
         }
 
         #sync-indicator {
@@ -133,6 +135,25 @@
             background: var(--success-green);
             flex-shrink: 0;
             transition: background 0.4s;
+        }
+
+        /* Responsive Header Adjustments */
+        .mobile-icon { display: none; }
+        
+        @media (max-width: 768px) {
+            .hide-on-mobile { display: none !important; }
+            .mobile-icon { display: inline-block !important; }
+            
+            header { padding: 0.8rem 3%; }
+            header h1 { font-size: 1.25rem; }
+            .header-right { gap: 0.5rem; }
+            
+            #firebase-signin-btn {
+                padding: 0.4rem 0.7rem;
+                font-size: 0.8rem;
+            }
+            .btn-header { padding: 0.4rem 0.6rem; }
+            #user-avatar { width: 28px; height: 28px; }
         }
 
         .container {
@@ -1388,24 +1409,27 @@
 
 <body>
     <header>
-        <h1>🍿 Movies</h1>
+        <h1>🍿 <span class="hide-on-mobile">Movies</span></h1>
         <div class="header-right">
             <!-- Sync indicator (shows when signed in) -->
             <div id="sync-indicator">
                 <div class="sync-dot"></div>
-                <span class="sync-label">Synced</span>
+                <span class="sync-label hide-on-mobile">Synced</span>
             </div>
 
-            <!-- Firebase sign in / user profile -->
-            <button id="firebase-signin-btn" onclick="firebaseSignIn()">☁ Sign In</button>
-            <div id="user-profile-header">
-                <img id="user-avatar" src="" alt="avatar">
-                <button id="firebase-signout-btn" onclick="firebaseSignOut()">Sign out</button>
-            </div>
+            <!-- Firebase sign in -->
+            <button id="firebase-signin-btn" onclick="firebaseSignIn()">
+                <span class="hide-on-mobile">☁ </span>Sign In
+            </button>
+            
+            <!-- User Avatar (triggers Profile Tab) -->
+            <img id="user-avatar" src="" alt="avatar" style="display: none;" title="Profile & Settings" onclick="openProfileDrawer()">
 
-            <!-- Existing menu button -->
+            <!-- Menu button -->
             <button id="watchlist-toggle-btn" class="btn btn-header">
-                Menu <span id="watchlist-count" class="badge">0</span>
+                <span class="hide-on-mobile">Menu</span>
+                <span class="mobile-icon" style="font-size: 1.1rem; line-height: 1;">☰</span>
+                <span id="watchlist-count" class="badge">0</span>
             </button>
         </div>
     </header>
@@ -1468,6 +1492,17 @@
 
             <!-- PROFILE TAB -->
             <div id="tab-profile" class="tab-content">
+                
+                <!-- Expanded Profile Account Info -->
+                <div id="profile-account-section" style="display: none; align-items: center; gap: 1rem; background: #222; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #333;">
+                    <img id="profile-drawer-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+                    <div style="flex: 1; min-width: 0;">
+                        <h3 id="profile-drawer-name" style="margin: 0 0 0.2rem 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">User</h3>
+                        <p id="profile-drawer-email" style="margin: 0; color: #aaa; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">email</p>
+                    </div>
+                    <button class="drawer-signout-btn" onclick="firebaseSignOut()">Sign Out</button>
+                </div>
+
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.8rem;">
                     <h3 style="margin:0;">Year in Review</h3>
                     <div style="display:flex; gap: 8px;">
@@ -1705,8 +1740,6 @@
         // ==========================================
         // ⚙️  CONFIGURATION
         // ==========================================
-        // 🔧 STEP 1: Paste your Firebase project config here.
-        //    Go to: Firebase Console → Project Settings → Your Apps → Config
         const firebaseConfig = {
             apiKey: "AIzaSyBbBFyGfNfx_NWA07YS-7G_RlDcq71bSk4",
             authDomain: "movie-calendar-9137f.firebaseapp.com",
@@ -1716,7 +1749,7 @@
             appId: "1:1064087031521:web:c3d5bac65b0587138031a0"
         };
 
-        // Your existing keys — leave these as-is
+        // Your existing keys
         const TMDB_API_KEY = '97293f46c7a2e36b511c6109f64f18ae';
         const GOOGLE_CLIENT_ID = '299139386525-tpn5iv66mo09g1fm0rdrder8qg3s9g5t.apps.googleusercontent.com';
         const SCOPES = 'https://www.googleapis.com/auth/calendar';
@@ -1741,7 +1774,7 @@
         // ── Firebase state ──
         let currentUser = null;
         let friends = [];
-        let friendDiaryCache = {}; // uid → diary array
+        let friendDiaryCache = {}; 
         let syncDebounceTimer = null;
         let firebaseReady = false;
 
@@ -1770,7 +1803,7 @@
             } catch (err) {
                 console.warn('Firebase not configured yet. Running in local-only mode.', err);
                 firebaseReady = false;
-                renderFriendsTab(); // still render (will show sign-in prompt)
+                renderFriendsTab(); 
             }
         }
 
@@ -1803,50 +1836,50 @@
 
         function updateAuthUI(user) {
             const signinBtn = document.getElementById('firebase-signin-btn');
-            const profileArea = document.getElementById('user-profile-header');
             const avatarEl = document.getElementById('user-avatar');
             const syncInd = document.getElementById('sync-indicator');
+            const profileAcct = document.getElementById('profile-account-section');
 
             if (user) {
                 signinBtn.style.display = 'none';
-                profileArea.style.display = 'flex';
+                avatarEl.style.display = 'block';
                 syncInd.style.display = 'flex';
                 avatarEl.src = user.photoURL || '';
+                
+                if(profileAcct) {
+                    profileAcct.style.display = 'flex';
+                    document.getElementById('profile-drawer-avatar').src = user.photoURL || '';
+                    document.getElementById('profile-drawer-name').textContent = user.displayName || 'Movie Fan';
+                    document.getElementById('profile-drawer-email').textContent = user.email || '';
+                }
             } else {
                 signinBtn.style.display = 'block';
-                profileArea.style.display = 'none';
+                avatarEl.style.display = 'none';
                 syncInd.style.display = 'none';
+                
+                if(profileAcct) {
+                    profileAcct.style.display = 'none';
+                }
             }
         }
 
         function setSyncStatus(status) {
-            // status: 'syncing' | 'synced' | 'error'
             const dot = document.querySelector('.sync-dot');
             const label = document.querySelector('.sync-label');
             if (!dot) return;
             const map = {
-                syncing: {
-                    color: '#f5c518',
-                    text: 'Syncing…'
-                },
-                synced: {
-                    color: '#34A853',
-                    text: 'Synced'
-                },
-                error: {
-                    color: '#e50914',
-                    text: 'Sync error'
-                }
+                syncing: { color: '#f5c518', text: 'Syncing…' },
+                synced: { color: '#34A853', text: 'Synced' },
+                error: { color: '#e50914', text: 'Sync error' }
             };
             dot.style.background = map[status].color;
-            label.textContent = map[status].text;
+            if (label) label.textContent = map[status].text;
         }
 
         // ==========================================
         // 👤 USER PROFILE & FRIEND CODE
         // ==========================================
         function generateFriendCode() {
-            // avoids I, O, 0, 1 to prevent confusion
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let code = 'FILM-';
             for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
@@ -1874,7 +1907,6 @@
                     photoURL: user.photoURL || ''
                 });
             } else {
-                // Keep profile fields fresh
                 const updates = {
                     displayName: user.displayName || snap.data().displayName,
                     photoURL: user.photoURL || snap.data().photoURL
@@ -1890,8 +1922,6 @@
         // ==========================================
         // ☁️  FIRESTORE SYNC
         // ==========================================
-
-        // Pull everything from Firestore and merge with localStorage
         async function loadFromFirestore() {
             if (!currentUser || !firebaseReady) return;
             try {
@@ -1901,30 +1931,19 @@
 
                 if (userSnap.exists) {
                     const data = userSnap.data();
-
-                    // -- Watchlist --
                     if (Array.isArray(data.watchlist) && data.watchlist.length > 0) {
                         watchlist = data.watchlist;
                     } else if (watchlist.length > 0) {
-                        // Migrate existing local watchlist up to Firestore
-                        await userRef.update({
-                            watchlist
-                        });
+                        await userRef.update({ watchlist });
                     }
-
-                    // -- Friend code display --
                     const codeEl = document.getElementById('my-friend-code');
                     if (codeEl && data.friendCode) codeEl.textContent = data.friendCode;
                 }
 
-                // -- Diary (subcollection) --
-                const diarySnap = await db.collection('users').doc(currentUser.uid)
-                    .collection('diary').get();
-
+                const diarySnap = await db.collection('users').doc(currentUser.uid).collection('diary').get();
                 if (!diarySnap.empty) {
                     diary = diarySnap.docs.map(d => d.data());
                 } else if (diary.length > 0) {
-                    // Migrate existing local diary up
                     const batch = db.batch();
                     diary.forEach(entry => {
                         const ref = db.collection('users').doc(currentUser.uid)
@@ -1934,7 +1953,6 @@
                     await batch.commit();
                 }
 
-                // Refresh cache & UI
                 localStorage.setItem('movieWatchlist', JSON.stringify(watchlist));
                 localStorage.setItem('movieDiary', JSON.stringify(diary));
                 updateListsUI();
@@ -1947,17 +1965,13 @@
             }
         }
 
-        // Push watchlist to Firestore (debounced)
         function syncWatchlistToFirestore() {
             if (!currentUser || !firebaseReady) return;
             clearTimeout(syncDebounceTimer);
             syncDebounceTimer = setTimeout(async () => {
                 try {
                     setSyncStatus('syncing');
-                    await db.collection('users').doc(currentUser.uid)
-                        .update({
-                            watchlist
-                        });
+                    await db.collection('users').doc(currentUser.uid).update({ watchlist });
                     setSyncStatus('synced');
                 } catch (err) {
                     setSyncStatus('error');
@@ -1966,7 +1980,6 @@
             }, 800);
         }
 
-        // Upsert one diary entry to Firestore
         async function saveDiaryEntryToFirestore(entry) {
             if (!currentUser || !firebaseReady) return;
             try {
@@ -1980,7 +1993,6 @@
             }
         }
 
-        // Delete one diary entry from Firestore
         async function deleteDiaryEntryFromFirestore(id) {
             if (!currentUser || !firebaseReady) return;
             try {
@@ -2069,7 +2081,6 @@
             navigator.clipboard.writeText(code)
                 .then(() => showToast('Friend code copied! 📋'))
                 .catch(() => {
-                    // Fallback
                     const el = document.createElement('textarea');
                     el.value = code;
                     document.body.appendChild(el);
@@ -2096,7 +2107,6 @@
                 return;
             }
 
-            // Signed in — show full friends UI
             container.innerHTML = `
                 <div class="friend-code-box">
                     <div class="friend-code-label">Your Friend Code</div>
@@ -2118,13 +2128,11 @@
                 <div class="friends-section-label">Following (${friends.length})</div>
                 <div id="friends-list"></div>`;
 
-            // Reload friend code from Firestore
             db.collection('users').doc(currentUser.uid).get().then(snap => {
                 const el = document.getElementById('my-friend-code');
                 if (el && snap.exists) el.textContent = snap.data().friendCode || '—';
             }).catch(() => {});
 
-            // Render friends list
             const list = document.getElementById('friends-list');
             if (friends.length === 0) {
                 list.innerHTML =
@@ -2161,7 +2169,6 @@
             currentFriendUid = uid;
             currentFriendData = null;
 
-            // Populate header
             document.getElementById('friend-modal-name').textContent = friend.displayName || 'Friend';
             document.getElementById('friend-modal-subtitle').textContent = '🎬 Movie Diary';
             document.getElementById('friend-modal-avatar').src = friend.photoURL || '';
@@ -2171,13 +2178,11 @@
 
             openModal('friend-profile-modal');
 
-            // Load from Firestore
             try {
                 const snap = await db.collection('users').doc(uid).collection('diary').get();
                 currentFriendData = snap.docs.map(d => d.data());
                 friendDiaryCache[uid] = currentFriendData;
 
-                // Build year selector
                 const years = new Set();
                 currentFriendData.forEach(m => {
                     if (m.watchedDate) years.add(m.watchedDate.split('-')[0]);
@@ -2385,6 +2390,14 @@
                 document.body.style.overflow = '';
             }
         }
+
+        window.openProfileDrawer = function() {
+            if (!drawer.classList.contains('open')) {
+                toggleDrawer();
+            }
+            switchDrawerTab('profile');
+        };
+
         document.getElementById('watchlist-toggle-btn').addEventListener('click', toggleDrawer);
         document.getElementById('close-watchlist-btn').addEventListener('click', toggleDrawer);
         backdrop.addEventListener('click', toggleDrawer);
@@ -2392,7 +2405,18 @@
         function switchDrawerTab(tabName, e) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            if (e && e.target) e.target.classList.add('active');
+            
+            if (e && e.target) {
+                e.target.classList.add('active');
+            } else {
+                const buttons = document.querySelectorAll('.tab-btn');
+                buttons.forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabName)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
             document.getElementById(`tab-${tabName}`).classList.add('active');
             document.getElementById('drawer-footer-sync').style.display = (tabName === 'watchlist') ? 'block' : 'none';
             if (tabName === 'profile') {
@@ -2418,7 +2442,6 @@
             document.getElementById(id).style.display = 'none';
         }
 
-        // Safe HTML escape helper
         function escHtml(str) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g,
                 '&quot;').replace(/'/g, '&#39;');
