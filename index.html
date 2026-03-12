@@ -13,8 +13,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- jsQR for Auto QR Detection & Cropper.js for Manual Fallback -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <!-- Cropper.js for Manual & AI-Assisted Cropping -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -72,7 +71,7 @@
         .header-right {
             display: flex;
             align-items: center;
-            gap: 0.8rem;
+            gap: 0.6rem;
         }
 
         #firebase-signin-btn {
@@ -90,6 +89,12 @@
 
         #firebase-signin-btn:hover {
             background: #333;
+        }
+
+        #user-profile-header {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         #user-avatar {
@@ -1883,7 +1888,7 @@
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('ticket-builder-modal')">&times;</button>
             <h3 style="margin-top:0;">Save Ticket</h3>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll use AI to read the details!</p>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll use AI to automatically read the details and crop the code!</p>
             
             <button class="photo-upload-btn" id="trigger-ticket-upload" onclick="document.getElementById('ticket-upload-input').click()">
                 <span style="font-size: 1.5rem;">📸</span> Select Ticket Screenshot
@@ -1891,7 +1896,7 @@
             <input type="file" id="ticket-upload-input" accept="image/*" style="display:none;">
             
             <div id="cropper-container" style="display: none; max-height: 300px; margin-bottom: 1rem;">
-                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Swipe to box the QR code:</p>
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Finding barcode...</p>
                 <img id="ticket-cropper-img" src="" style="max-width: 100%;">
             </div>
             
@@ -2104,7 +2109,7 @@
         let diary = [];
         let myTickets = [];
         let myPlans = [];
-        let allFriendsTickets = []; // Caches tickets from friends for shared plans
+        let allFriendsTickets = []; 
         
         let tokenClient;
         let accessToken = null;
@@ -2121,7 +2126,6 @@
         let currentViewedMovie = null; // {id, title, posterPath}
         let currentPlanTicketId = null; 
         let cropperInstance = null;
-        let autoCropBase64 = null;
 
         let pendingTokenResolve = null;
         let pendingTokenReject = null;
@@ -2710,7 +2714,7 @@
             
             locationTimeout = setTimeout(async () => {
                 try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=cinema+OR+theater+${encodeURIComponent(q)}&limit=5`);
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`);
                     const data = await res.json();
                     if(data.length > 0) {
                         ac.innerHTML = data.map(d => `
@@ -2757,7 +2761,7 @@
                 contents: [{
                     role: "user",
                     parts: [
-                        { text: `Extract the movie theater/cinema name, date (in YYYY-MM-DD format, safely assume the current year is ${currentYear} if missing), and the time (in HH:MM 24-hour format). Return ONLY a raw JSON object with keys: 'theater', 'date', 'time'. Example: {"theater":"AMC Century City", "date":"2026-03-19", "time":"14:00"}` },
+                        { text: `Extract the movie theater/cinema name, date (in YYYY-MM-DD format, safely assume the current year is ${currentYear} if missing), and the time (in HH:MM 24-hour format). Also, find the large square barcode (like a QR or Aztec code) in the image and provide its bounding box as an array of 4 normalized coordinates [ymin, xmin, ymax, xmax] (values between 0.0 and 1.0). Return ONLY a raw JSON object with keys: 'theater', 'date', 'time', 'barcode_box'. Example: {"theater":"AMC Century City", "date":"2026-03-19", "time":"14:00", "barcode_box": [0.5, 0.1, 0.8, 0.9]}` },
                         { inlineData: { mimeType: mimeType, data: b64Data } }
                     ]
                 }],
@@ -2808,7 +2812,6 @@
             document.getElementById('ticket-details-form').style.display = 'none';
             
             currentPlanTicketId = planId; // Save linked plan ID if present
-            autoCropBase64 = null;
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
             document.getElementById('ticket-cropper-img').src = '';
@@ -2839,58 +2842,22 @@
             reader.onload = function (ev) {
                 const imgSource = new Image();
                 imgSource.onload = async function() {
-                    const canvas = document.createElement('canvas');
-                    // Draw full size for jsQR
-                    canvas.width = imgSource.width;
-                    canvas.height = imgSource.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(imgSource, 0, 0);
+                    // Start manual cropper immediately
+                    document.getElementById('cropper-container').style.display = 'block';
+                    document.getElementById('cropper-instruction').innerText = "✨ AI is finding your barcode... (or crop manually)";
                     
-                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const code = jsQR(imgData.data, canvas.width, canvas.height);
+                    const img = document.getElementById('ticket-cropper-img');
+                    img.src = ev.target.result;
+                    img.style.display = 'block';
+                    img.style.maxWidth = '100%';
                     
-                    if (code) {
-                        // Auto-crop based on QR coordinates!
-                        const loc = code.location;
-                        const minX = Math.min(loc.topLeft.x, loc.bottomLeft.x);
-                        const minY = Math.min(loc.topLeft.y, loc.topRight.y);
-                        const maxX = Math.max(loc.topRight.x, loc.bottomRight.x);
-                        const maxY = Math.max(loc.bottomLeft.y, loc.bottomRight.y);
-                        
-                        const pad = 20; // Extra padding around QR
-                        const cropX = Math.max(0, minX - pad);
-                        const cropY = Math.max(0, minY - pad);
-                        const cropW = Math.min(canvas.width - cropX, (maxX - minX) + pad * 2);
-                        const cropH = Math.min(canvas.height - cropY, (maxY - minY) + pad * 2);
-                        
-                        const cropCanvas = document.createElement('canvas');
-                        cropCanvas.width = cropW;
-                        cropCanvas.height = cropH;
-                        cropCanvas.getContext('2d').drawImage(imgSource, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-                        
-                        autoCropBase64 = cropCanvas.toDataURL('image/jpeg', 0.9);
-                        
-                        document.getElementById('cropper-container').style.display = 'block';
-                        document.getElementById('cropper-instruction').innerText = "✨ QR Code found automatically!";
-                        document.getElementById('ticket-cropper-img').src = autoCropBase64;
-                        document.getElementById('ticket-cropper-img').style.maxWidth = '200px'; // Restrict visual size
-                        document.getElementById('ticket-cropper-img').style.margin = '0 auto';
-                        document.getElementById('ticket-cropper-img').style.display = 'block';
-                        
-                    } else {
-                        // Fallback to manual cropper
-                        document.getElementById('cropper-container').style.display = 'block';
-                        document.getElementById('cropper-instruction').innerText = "Could not detect QR. Please box it manually:";
-                        const img = document.getElementById('ticket-cropper-img');
-                        img.src = ev.target.result;
-                        if(cropperInstance) cropperInstance.destroy();
-                        cropperInstance = new Cropper(img, {
-                            aspectRatio: 1,
-                            viewMode: 1,
-                            autoCropArea: 0.8,
-                            background: false
-                        });
-                    }
+                    if(cropperInstance) cropperInstance.destroy();
+                    cropperInstance = new Cropper(img, {
+                        aspectRatio: 1,
+                        viewMode: 1,
+                        autoCropArea: 0.8,
+                        background: false
+                    });
 
                     // Resize for Gemini to keep payload small
                     let w = imgSource.width, h = imgSource.height;
@@ -2903,7 +2870,7 @@
                     const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
                     
                     // Trigger Gemini Extraction
-                    saveBtn.innerText = "✨ Reading ticket text...";
+                    saveBtn.innerText = "✨ AI analyzing ticket...";
 
                     try {
                         const data = await analyzeTicketWithGemini(base64ForGemini);
@@ -2911,10 +2878,36 @@
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
                             if (data.date) document.getElementById('ticket-date').value = data.date;
                             if (data.time) document.getElementById('ticket-time').value = data.time;
+                            
+                            // MAGIC CROP!
+                            if (data.barcode_box && data.barcode_box.length === 4) {
+                                const [ymin, xmin, ymax, xmax] = data.barcode_box;
+                                const imgWidth = imgSource.naturalWidth || imgSource.width;
+                                const imgHeight = imgSource.naturalHeight || imgSource.height;
+                                
+                                const boxX = xmin * imgWidth;
+                                const boxY = ymin * imgHeight;
+                                const boxWidth = (xmax - xmin) * imgWidth;
+                                const boxHeight = (ymax - ymin) * imgHeight;
+                                
+                                const pad = Math.min(boxWidth, boxHeight) * 0.1; // 10% padding
+                                
+                                cropperInstance.setData({
+                                    x: Math.max(0, boxX - pad),
+                                    y: Math.max(0, boxY - pad),
+                                    width: boxWidth + (pad * 2),
+                                    height: boxHeight + (pad * 2)
+                                });
+                                document.getElementById('cropper-instruction').innerText = "✨ Barcode found automatically!";
+                            } else {
+                                document.getElementById('cropper-instruction').innerText = "Could not detect barcode. Please box it manually:";
+                            }
+
                             if (data.theater || data.date || data.time) showToast('✨ Ticket details extracted!');
                         }
                     } catch(err) {
                         console.error("Gemini Vision failed:", err);
+                        document.getElementById('cropper-instruction').innerText = "Please box the barcode manually:";
                         showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
@@ -2927,14 +2920,9 @@
         });
         
         document.getElementById('save-ticket-btn').addEventListener('click', async () => {
-            let qrBase64 = null;
-            if(autoCropBase64) {
-                qrBase64 = autoCropBase64;
-            } else if(cropperInstance) {
-                qrBase64 = cropperInstance.getCroppedCanvas({width: 300, height: 300}).toDataURL('image/jpeg', 0.8);
-            } else {
-                return showToast('Please upload a ticket screenshot first.', true);
-            }
+            if(!cropperInstance) return showToast('Please upload a ticket screenshot first.', true);
+            
+            const qrBase64 = cropperInstance.getCroppedCanvas({width: 300, height: 300}).toDataURL('image/jpeg', 0.8);
             
             const theater = document.getElementById('ticket-theater').value.trim() || 'Unknown Theater';
             const date = document.getElementById('ticket-date').value;
