@@ -9,21 +9,16 @@
         href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192'><rect width='192' height='192' fill='%23e50914' rx='48'/><text x='50%' y='50%' fill='white' font-size='80' dominant-baseline='middle' text-anchor='middle'>🍿</text></svg>">
     <title>Movie Tracker & Calendar Sync</title>
 
-    <!-- Google Identity Services & HTML2Canvas for Image Sharing -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- Cropper.js for Manual Cropping -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
-    <!-- ZXing Library for Barcode Detection -->
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     
-    <!-- Tesseract.js for Offline Text Scanning/Fallback -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-    <!-- Firebase SDK (Compat v9) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -1684,21 +1679,17 @@
     <header>
         <h1>🍿 <span class="hide-on-mobile">Movies</span></h1>
         <div class="header-right">
-            <!-- Sync indicator (shows when signed in) -->
             <div id="sync-indicator">
                 <div class="sync-dot"></div>
                 <span class="sync-label hide-on-mobile">Synced</span>
             </div>
 
-            <!-- Firebase sign in -->
             <button id="firebase-signin-btn" onclick="firebaseSignIn()">
                 <span class="hide-on-mobile">☁ </span>Sign In
             </button>
             
-            <!-- User Avatar (triggers Profile Tab) -->
             <img id="user-avatar" src="" alt="avatar" style="display: none;" title="Profile & Settings" onclick="openProfileDrawer()">
 
-            <!-- Menu button -->
             <button id="watchlist-toggle-btn" class="btn btn-header">
                 <span class="hide-on-mobile">Menu</span>
                 <span class="mobile-icon" style="font-size: 1.1rem; line-height: 1;">☰</span>
@@ -1738,7 +1729,6 @@
         </section>
     </main>
 
-    <!-- Drawer System -->
     <div id="drawer-backdrop" class="drawer-backdrop"></div>
     <div id="watchlist-drawer" class="watchlist-drawer">
         <div class="drawer-header">
@@ -1754,17 +1744,14 @@
         </div>
 
         <div class="drawer-content">
-            <!-- WATCHLIST TAB -->
             <div id="tab-watchlist" class="tab-content active">
                 <ul id="watchlist-container" class="list-container"></ul>
             </div>
 
-            <!-- DIARY TAB -->
             <div id="tab-diary" class="tab-content">
                 <div id="diary-container"></div>
             </div>
 
-            <!-- PLANS & TICKETS TAB -->
             <div id="tab-plans" class="tab-content">
                 <h3 style="margin-top:0;">🎟️ My Tickets</h3>
                 <div id="tickets-container"></div>
@@ -1773,17 +1760,13 @@
                 <div id="plans-container"></div>
             </div>
 
-            <!-- FRIENDS TAB -->
             <div id="tab-friends" class="tab-content">
                 <div id="friends-tab-inner">
-                    <!-- Content rendered by renderFriendsTab() -->
-                </div>
+                    </div>
             </div>
 
-            <!-- PROFILE TAB -->
             <div id="tab-profile" class="tab-content">
                 
-                <!-- Expanded Profile Account Info -->
                 <div id="profile-account-section" style="display: none; align-items: center; gap: 1rem; background: #222; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #333;">
                     <img id="profile-drawer-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
                     <div style="flex: 1; min-width: 0;">
@@ -1861,11 +1844,12 @@
                 </div>
 
                 <div style="background: #222; padding: 1.5rem; border-radius: 10px; margin-top: 1.5rem;">
-                    <h3 style="margin-top:0;">🤖 AI Ticket Scanner</h3>
-                    <p style="font-size:0.85rem; color:#aaa;">Ticket screenshots are analyzed by Claude AI to automatically fill in theater, date, time, and seat details.</p>
-                    <div style="background:#1a1a2e; border:1px solid #3a3a5c; border-radius:8px; padding:0.8rem; font-size:0.82rem; color:#aaa; display:flex; align-items:center; gap:8px;">
-                        <span style="font-size:1.2rem;">✨</span> Claude Vision is active — just upload your ticket screenshot!
+                    <h3 style="margin-top:0;">AI Scanner Settings</h3>
+                    <p style="font-size:0.85rem; color:#aaa;">Enter your Gemini API Key to enable smart ticket scanning. This is saved securely on your local device.</p>
+                    <div class="modal-input-group">
+                        <input type="password" id="gemini-api-key-input" placeholder="AIzaSy...">
                     </div>
+                    <button class="btn btn-outline" style="width:100%; margin-top: 0.5rem;" onclick="saveApiKey()">Save API Key</button>
                 </div>
             </div>
         </div>
@@ -1882,7 +1866,6 @@
         </div>
     </div>
 
-    <!-- Movie Details Modal -->
     <div id="movie-modal" class="modal-backdrop">
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal('movie-modal')">&times;</button>
@@ -1911,7 +1894,6 @@
         </div>
     </div>
     
-    <!-- Ticket Builder Modal -->
     <div id="ticket-builder-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('ticket-builder-modal')">&times;</button>
@@ -1923,10 +1905,13 @@
             </button>
             <input type="file" id="ticket-upload-input" accept="image/*" style="display:none;">
 
-            <!-- QR auto-detect preview -->
             <div id="qr-preview-box">
                 <img id="qr-preview-img" src="" alt="QR Code">
                 <div id="qr-status">✓ QR code detected</div>
+            </div>
+
+            <div id="cropper-container" style="display: none; margin: 1rem auto; max-width: 100%; overflow: hidden; border-radius: 8px;">
+                <img id="ticket-cropper-img" src="" alt="Crop Ticket" style="max-width: 100%; display: block;">
             </div>
 
             <div id="ticket-details-form" style="display: none; text-align: left;">
@@ -1955,7 +1940,6 @@
         </div>
     </div>
     
-    <!-- Plan Movie Night Modal -->
     <div id="plan-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: left;">
             <button class="modal-close" onclick="closeModal('plan-modal')">&times;</button>
@@ -1981,15 +1965,13 @@
             <div class="modal-input-group">
                 <label>Invite Friends (Must follow each other)</label>
                 <div id="plan-friends-list" style="background: #222; border: 1px solid #444; border-radius: 6px; padding: 0.8rem; max-height: 150px; overflow-y: auto;">
-                    <!-- Friend Checkboxes -->
-                </div>
+                    </div>
             </div>
             
             <button class="btn btn-add" id="save-plan-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;" onclick="savePlan()">Send Invites</button>
         </div>
     </div>
 
-    <!-- Rating & Memory Modal -->
     <div id="rating-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('rating-modal')">&times;</button>
@@ -2026,7 +2008,6 @@
         </div>
     </div>
 
-    <!-- Edit Diary Entry Modal -->
     <div id="edit-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
@@ -2073,7 +2054,6 @@
         </div>
     </div>
 
-    <!-- View Memory Modal -->
     <div id="memory-modal" class="modal-backdrop">
         <div class="modal-content" style="padding: 1rem; text-align: center; max-width: 600px;">
             <button class="modal-close" onclick="closeModal('memory-modal')">&times;</button>
@@ -2083,7 +2063,6 @@
         </div>
     </div>
     
-    <!-- Enlarge QR Modal -->
     <div id="qr-enlarge-modal" class="modal-backdrop">
         <div class="modal-content" style="padding: 1rem; text-align: center; max-width: 400px; background: white;">
             <button class="modal-close" onclick="closeModal('qr-enlarge-modal')" style="background: #111;">&times;</button>
@@ -2092,7 +2071,6 @@
         </div>
     </div>
 
-    <!-- Friend Profile Modal -->
     <div id="friend-profile-modal" class="modal-backdrop">
         <div class="modal-content" style="max-width:520px; padding:0;">
             <button class="modal-close" onclick="closeModal('friend-profile-modal')"
@@ -2116,7 +2094,6 @@
         </div>
     </div>
 
-    <!-- Global Toast -->
     <div id="toast">Message</div>
 
     <script>
@@ -2834,46 +2811,75 @@
         }
 
         // ── TICKET: AI Extraction (Primary Method) ──
-        // ── TICKET: Claude AI Vision (primary extraction) ──
         async function analyzeTicketWithGemini(base64Image) {
-            const currentYear = new Date().getFullYear();
+            const apiKey = localStorage.getItem('gemini_api_key') || ""; 
+            if (!apiKey) {
+                throw new Error("No API key found. Please enter it in your Profile tab.");
+            }
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
             const [header, b64Data] = base64Image.split(',');
             const mimeType = header.split(';')[0].split(':')[1];
+            
+            const currentYear = new Date().getFullYear();
+            
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.
+                        
+                        CRITICAL FORMATTING RULES:
+                        - Harkins theaters often stack the date (e.g., 'MAR' on one line, '19' on the next). Combine them.
+                        - Cinemark theaters often write the date linearly (e.g. 'Tuesday, March 10, 2026'). 
+                        
+                        Extract:
+                        1. 'theater': Name of the cinema (e.g. 'Arrowhead Fountains 18' or 'Cinemark Mesa 16'). DO NOT put dates, days of the week, or times in this field.
+                        2. 'date': Convert to YYYY-MM-DD. If year is missing (like 'MAR 19'), use ${currentYear}.
+                        3. 'time': Convert to 24-hour HH:MM format (e.g. '14:00' for 2:00 PM).
+                        4. 'seats': Exact seat numbers. Look for 'F-5, F-6' or 'F7, F8'. Ignore ticket counts like '2 Tickets'.` },
+                        { inlineData: { mimeType: mimeType, data: b64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            theater: { type: "STRING", description: "Name of the movie theater (e.g. 'Arrowhead Fountains 18' or 'Cinemark Mesa 16'). Exclude the street address." },
+                            date: { type: "STRING", description: "Convert to YYYY-MM-DD. If year is missing (like 'MAR 19'), use 2026." },
+                            time: { type: "STRING", description: "Convert to 24-hour HH:MM format (e.g. '14:00' for 2:00 PM, '19:25' for 7:25 PM)." },
+                            seats: { type: "STRING", description: "Exact seat numbers. Look for 'F-5, F-6' or 'F7, F8'. Ignore ticket counts like '2 Tickets'." }
+                        },
+                        required: ["theater", "date", "time", "seats"]
+                    }
+                }
+            };
 
-            const prompt = `You are extracting data from a movie ticket screenshot. Return ONLY a JSON object with exactly these 4 keys, no markdown, no explanation:
-{
-  "theater": "Name of cinema only, e.g. Arrowhead Fountains 18 or Cinemark Mesa 16. NO address, NO date, NO time.",
-  "date": "YYYY-MM-DD format. Year is ${currentYear} if not shown. Harkins tickets show MAR and 19 on separate lines — combine them.",
-  "time": "24-hour HH:MM, e.g. 14:00 for 2:00 PM, 19:25 for 7:25 PM.",
-  "seats": "Seat codes only e.g. F-5, F-6 or F7, F8. Ignore ticket counts like 2 Tickets."
-}`;
-
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': '',
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-calls': 'true'
-                },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 256,
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64Data } },
-                            { type: 'text', text: prompt }
-                        ]
-                    }]
-                })
-            });
-
-            if (!response.ok) throw new Error('Claude API error: ' + response.status);
-            const result = await response.json();
-            let text = result.content?.[0]?.text || '';
-            text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-            return JSON.parse(text);
+            let retries = 3;
+            let delay = 1000;
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error("API Error: " + response.statusText);
+                    const result = await response.json();
+                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("No text returned");
+                    
+                    // Safely strip markdown block
+                    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    return JSON.parse(text);
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
         }
 
         // ── TICKET: OCR with Tesseract.js (Offline Fallback for robust parsing) ──
@@ -3080,8 +3086,8 @@
                             data = await analyzeTicketWithGemini(base64ForExtraction);
                         } catch (geminiErr) {
                             // Fallback to robust offline OCR
-                            console.warn("Claude AI unavailable, falling back to local OCR...");
-                            document.getElementById('ocr-status-bar').textContent = '🔍 Using local text scanner...';
+                            console.warn("Gemini AI unavailable, switching to local offline scanner...");
+                            document.getElementById('ocr-status-bar').textContent = 'Fallback local scanner activated...';
                             data = await analyzeTicketWithOCR(imgEl);
                         }
 
