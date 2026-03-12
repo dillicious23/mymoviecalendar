@@ -13,7 +13,7 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- Cropper.js for Manual & AI-Assisted Cropping -->
+    <!-- Cropper.js for Manual Cropping -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
@@ -842,7 +842,7 @@
             display: flex;
             gap: 12px;
             min-width: 0;
-            position: relative; /* For delete button positioning */
+            position: relative;
         }
         
         .ticket-info img {
@@ -1232,6 +1232,7 @@
         .modal-input-group {
             margin-bottom: 1rem;
             text-align: left;
+            position: relative;
         }
         
         .modal-input-group label {
@@ -1888,22 +1889,25 @@
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('ticket-builder-modal')">&times;</button>
             <h3 style="margin-top:0;">Save Ticket</h3>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll use AI to automatically read the details and crop the code!</p>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll use AI to read the text!</p>
             
             <button class="photo-upload-btn" id="trigger-ticket-upload" onclick="document.getElementById('ticket-upload-input').click()">
                 <span style="font-size: 1.5rem;">📸</span> Select Ticket Screenshot
             </button>
             <input type="file" id="ticket-upload-input" accept="image/*" style="display:none;">
             
-            <div id="cropper-container" style="display: none; max-height: 300px; margin-bottom: 1rem;">
-                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Finding barcode...</p>
-                <img id="ticket-cropper-img" src="" style="max-width: 100%;">
+            <div id="cropper-container" style="display: none; margin-bottom: 1rem;">
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Box the barcode (Pan & Zoom supported):</p>
+                <div style="height: 270px; width: 100%; overflow: hidden;">
+                    <img id="ticket-cropper-img" src="" style="max-width: 100%; display:block;">
+                </div>
             </div>
             
             <div id="ticket-details-form" style="display: none; text-align: left;">
                 <div class="modal-input-group">
                     <label>Theater / Cinema Name</label>
-                    <input type="text" id="ticket-theater" placeholder="e.g. AMC Century City">
+                    <input type="text" id="ticket-theater" placeholder="Search for theater...">
+                    <div id="ticket-theater-autocomplete" style="position:absolute; top:100%; left:0; right:0; background:#222; border:1px solid #444; z-index:100; max-height:150px; overflow-y:auto; display:none; border-radius: 4px;"></div>
                 </div>
                 <div class="modal-input-group" style="display:flex; gap: 10px;">
                     <div style="flex:1;">
@@ -1914,6 +1918,10 @@
                         <label>Showtime</label>
                         <input type="time" id="ticket-time">
                     </div>
+                </div>
+                <div class="modal-input-group">
+                    <label>Seats</label>
+                    <input type="text" id="ticket-seats" placeholder="e.g. F-5, F-6">
                 </div>
                 <button class="btn btn-add" id="save-ticket-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;">Generate Digital Ticket</button>
             </div>
@@ -2115,7 +2123,6 @@
         let accessToken = null;
         let currentViewDate = new Date();
         let searchTimeout;
-        let locationTimeout;
         
         let pendingRatingMovie = null;
         let pendingUserPhotoBase64 = null;
@@ -2694,6 +2701,48 @@
         // 🎟️ TICKETS & 🍿 MOVIE NIGHT PLANNER
         // ==========================================
         
+        // Setup shared Autocomplete Logic
+        function setupAutocomplete(inputId, autocompleteId) {
+            let timeoutId;
+            const inputEl = document.getElementById(inputId);
+            inputEl.addEventListener('input', (e) => {
+                clearTimeout(timeoutId);
+                const q = e.target.value;
+                const ac = document.getElementById(autocompleteId);
+                if(q.length < 3) { ac.style.display = 'none'; return; }
+                
+                timeoutId = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`);
+                        const data = await res.json();
+                        if(data.length > 0) {
+                            ac.innerHTML = data.map(d => {
+                                const name = d.display_name.split(',')[0];
+                                return `
+                                <div style="padding:10px; cursor:pointer; border-bottom:1px solid #333; display:flex; flex-direction:column;" onclick="document.getElementById('${inputId}').value = '${escHtml(name.replace(/'/g, "\\'"))}'; document.getElementById('${autocompleteId}').style.display='none';">
+                                    <span style="font-weight:bold; font-size:0.95rem; color:#fff;">${escHtml(name)}</span>
+                                    <span style="font-size:0.75rem; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(d.display_name)}</span>
+                                </div>
+                                `}).join('');
+                            ac.style.display = 'block';
+                        } else {
+                            ac.style.display = 'none';
+                        }
+                    } catch(err) { console.warn("Autocomplete failed"); }
+                }, 600);
+            });
+            // Hide on outside click
+            document.addEventListener('click', (e) => {
+                if(e.target.id !== inputId) {
+                    const ac = document.getElementById(autocompleteId);
+                    if(ac) ac.style.display = 'none';
+                }
+            });
+        }
+
+        setupAutocomplete('plan-location', 'theater-autocomplete');
+        setupAutocomplete('ticket-theater', 'ticket-theater-autocomplete');
+        
         function formatTimeAMPM(time24) {
             if (!time24) return '';
             let [hours, minutes] = time24.split(':');
@@ -2704,45 +2753,6 @@
             hours = hours ? hours : 12; 
             return `${hours}:${minutes} ${ampm}`;
         }
-        
-        // Nominatim Location Autocomplete
-        document.getElementById('plan-location').addEventListener('input', (e) => {
-            clearTimeout(locationTimeout);
-            const q = e.target.value;
-            const ac = document.getElementById('theater-autocomplete');
-            if(q.length < 3) { ac.style.display = 'none'; return; }
-            
-            locationTimeout = setTimeout(async () => {
-                try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`);
-                    const data = await res.json();
-                    if(data.length > 0) {
-                        ac.innerHTML = data.map(d => `
-                            <div style="padding:10px; cursor:pointer; border-bottom:1px solid #333; display:flex; flex-direction:column;" onclick="selectTheater('${escHtml(d.display_name.split(',')[0].replace(/'/g, "\\'"))}')">
-                                <span style="font-weight:bold; font-size:0.95rem; color:#fff;">${escHtml(d.display_name.split(',')[0])}</span>
-                                <span style="font-size:0.75rem; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(d.display_name)}</span>
-                            </div>
-                        `).join('');
-                        ac.style.display = 'block';
-                    } else {
-                        ac.style.display = 'none';
-                    }
-                } catch(err) { console.warn("Autocomplete failed"); }
-            }, 600);
-        });
-        
-        window.selectTheater = function(name) {
-            document.getElementById('plan-location').value = name;
-            document.getElementById('theater-autocomplete').style.display = 'none';
-        };
-
-        // Hide autocomplete when clicking elsewhere
-        document.addEventListener('click', (e) => {
-            if(e.target.id !== 'plan-location') {
-                const ac = document.getElementById('theater-autocomplete');
-                if(ac) ac.style.display = 'none';
-            }
-        });
         
         window.enlargeQR = function(src) {
             document.getElementById('qr-enlarge-img').src = src;
@@ -2761,7 +2771,13 @@
                 contents: [{
                     role: "user",
                     parts: [
-                        { text: `Extract the movie theater/cinema name, date (in YYYY-MM-DD format, safely assume the current year is ${currentYear} if missing), and the time (in HH:MM 24-hour format). Also, find the large square barcode (like a QR or Aztec code) in the image and provide its bounding box as an array of 4 normalized coordinates [ymin, xmin, ymax, xmax] (values between 0.0 and 1.0). Return ONLY a raw JSON object with keys: 'theater', 'date', 'time', 'barcode_box'. Example: {"theater":"AMC Century City", "date":"2026-03-19", "time":"14:00", "barcode_box": [0.5, 0.1, 0.8, 0.9]}` },
+                        { text: `Extract the following from this movie ticket screenshot:
+1. Theater/Cinema name ('theater')
+2. Date in YYYY-MM-DD format. If it only says month and day (like 'MAR 19'), assume the year is ${currentYear} ('date')
+3. Showtime in HH:MM 24-hour format ('time')
+4. Seat numbers (e.g., 'F-5, F-6' or '18') ('seats')
+
+Return ONLY a raw JSON object. Example: {"theater":"Arrowhead Fountains 18", "date":"2026-03-19", "time":"14:00", "seats":"F-5, F-6"}` },
                         { inlineData: { mimeType: mimeType, data: b64Data } }
                     ]
                 }],
@@ -2803,9 +2819,11 @@
 
             if(!currentUser) return showToast("Sign in to save digital tickets!", true);
             
+            document.getElementById('ticket-upload-input').value = ''; // Reset file input so you can re-upload same file if needed
             document.getElementById('ticket-theater').value = th || '';
             document.getElementById('ticket-date').value = dt || new Date().toISOString().split('T')[0];
             document.getElementById('ticket-time').value = tm || '19:00';
+            document.getElementById('ticket-seats').value = '';
             
             document.getElementById('trigger-ticket-upload').style.display = 'flex';
             document.getElementById('cropper-container').style.display = 'none';
@@ -2815,7 +2833,7 @@
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
             document.getElementById('ticket-cropper-img').src = '';
-            document.getElementById('cropper-instruction').innerText = "Swipe to box the QR code:";
+            document.getElementById('cropper-instruction').innerText = "Box the barcode (Pan & Zoom supported):";
             
             closeModal('movie-modal');
             openModal('ticket-builder-modal');
@@ -2834,7 +2852,7 @@
             document.getElementById('trigger-ticket-upload').style.display = 'none';
             const saveBtn = document.getElementById('save-ticket-btn');
             const origText = saveBtn.innerText;
-            saveBtn.innerText = "✨ Processing Image...";
+            saveBtn.innerText = "✨ AI analyzing ticket...";
             saveBtn.disabled = true;
             document.getElementById('ticket-details-form').style.display = 'block';
             
@@ -2844,7 +2862,6 @@
                 imgSource.onload = async function() {
                     // Start manual cropper immediately
                     document.getElementById('cropper-container').style.display = 'block';
-                    document.getElementById('cropper-instruction').innerText = "✨ AI is finding your barcode... (or crop manually)";
                     
                     const img = document.getElementById('ticket-cropper-img');
                     img.src = ev.target.result;
@@ -2855,7 +2872,8 @@
                     cropperInstance = new Cropper(img, {
                         aspectRatio: 1,
                         viewMode: 1,
-                        autoCropArea: 0.8,
+                        dragMode: 'move', // Allows panning around easily on mobile
+                        autoCropArea: 0.6,
                         background: false
                     });
 
@@ -2870,44 +2888,18 @@
                     const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
                     
                     // Trigger Gemini Extraction
-                    saveBtn.innerText = "✨ AI analyzing ticket...";
-
                     try {
                         const data = await analyzeTicketWithGemini(base64ForGemini);
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
                             if (data.date) document.getElementById('ticket-date').value = data.date;
                             if (data.time) document.getElementById('ticket-time').value = data.time;
+                            if (data.seats) document.getElementById('ticket-seats').value = data.seats;
                             
-                            // MAGIC CROP!
-                            if (data.barcode_box && data.barcode_box.length === 4) {
-                                const [ymin, xmin, ymax, xmax] = data.barcode_box;
-                                const imgWidth = imgSource.naturalWidth || imgSource.width;
-                                const imgHeight = imgSource.naturalHeight || imgSource.height;
-                                
-                                const boxX = xmin * imgWidth;
-                                const boxY = ymin * imgHeight;
-                                const boxWidth = (xmax - xmin) * imgWidth;
-                                const boxHeight = (ymax - ymin) * imgHeight;
-                                
-                                const pad = Math.min(boxWidth, boxHeight) * 0.1; // 10% padding
-                                
-                                cropperInstance.setData({
-                                    x: Math.max(0, boxX - pad),
-                                    y: Math.max(0, boxY - pad),
-                                    width: boxWidth + (pad * 2),
-                                    height: boxHeight + (pad * 2)
-                                });
-                                document.getElementById('cropper-instruction').innerText = "✨ Barcode found automatically!";
-                            } else {
-                                document.getElementById('cropper-instruction').innerText = "Could not detect barcode. Please box it manually:";
-                            }
-
-                            if (data.theater || data.date || data.time) showToast('✨ Ticket details extracted!');
+                            if (data.theater || data.date || data.time || data.seats) showToast('✨ Ticket details extracted!');
                         }
                     } catch(err) {
                         console.error("Gemini Vision failed:", err);
-                        document.getElementById('cropper-instruction').innerText = "Please box the barcode manually:";
                         showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
@@ -2927,16 +2919,18 @@
             const theater = document.getElementById('ticket-theater').value.trim() || 'Unknown Theater';
             const date = document.getElementById('ticket-date').value;
             const time = document.getElementById('ticket-time').value;
+            const seats = document.getElementById('ticket-seats').value.trim();
             
             const newTicket = {
                 id: crypto.randomUUID(),
                 movieId: currentViewedMovie.id,
                 title: currentViewedMovie.title,
                 posterPath: currentViewedMovie.posterPath,
-                planId: currentPlanTicketId || null, // Link to plan!
+                planId: currentPlanTicketId || null, 
                 theater,
                 date,
                 time,
+                seats,
                 qr: qrBase64,
                 createdAt: new Date().toISOString()
             };
@@ -3167,6 +3161,7 @@
                                 <h4 title="${escHtml(t.title)}">${escHtml(t.title)}</h4>
                                 <p style="color:var(--primary); margin-bottom: 2px;">${escHtml(t.theater)}</p>
                                 <p>${formatDateMDY(t.date)} at ${formatTimeAMPM(t.time)}</p>
+                                ${t.seats ? `<p style="color:#888; font-size:0.75rem; margin-top:2px;">Seats: ${escHtml(t.seats)}</p>` : ''}
                             </div>
                         </div>
                         <div class="ticket-qr">
@@ -3207,6 +3202,7 @@
                                             <img src="${t.qr}" onclick="enlargeQR('${t.qr}')" title="View Ticket">
                                             <div style="font-size:0.7rem; color:#444; display:flex; flex-direction:column; justify-content:center; line-height:1.2;">
                                                 <b>Ticket</b>
+                                                ${t.seats ? `<span style="font-size:0.65rem; color:var(--gold);">${escHtml(t.seats)}</span>` : ''}
                                                 <span style="display:flex; align-items:center; gap:4px; margin-top:2px;">
                                                     <img src="${t.addedByAvatar}" style="width:12px; height:12px; border-radius:50%; margin:0; cursor:default;">
                                                     ${escHtml(t.addedBy)}
