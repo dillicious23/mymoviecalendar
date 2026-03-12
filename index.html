@@ -19,7 +19,8 @@
 
     <!-- ZXing Library for Barcode Detection -->
     <script src="https://unpkg.com/@zxing/library@latest"></script>
-    <!-- Tesseract.js: in-browser OCR -->
+    
+    <!-- Tesseract.js for Offline Text Scanning/Fallback -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <!-- Firebase SDK (Compat v9) -->
@@ -2771,159 +2772,129 @@
             openModal('qr-enlarge-modal');
         }
         
-        // In-browser OCR — no API key needed
-        async function analyzeTicketWithOCR(imgEl) {
+        async function analyzeTicketWithGemini(base64Image) {
+            const apiKey = ""; // Canvas execution environment injects the key
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const [header, b64Data] = base64Image.split(',');
+            const mimeType = header.split(';')[0].split(':')[1];
+            
             const currentYear = new Date().getFullYear();
+            
+            // Using Structured Output JSON Schema for strict extraction
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.` },
+                        { inlineData: { mimeType: mimeType, data: b64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            theater: { type: "STRING", description: "Theater or Cinema name" },
+                            date: { type: "STRING", description: "Convert to exact YYYY-MM-DD format based on the text. Example: If text is 'MAR 19' and year is 2026, output '2026-03-19'" },
+                            time: { type: "STRING", description: "Convert to 24-hour HH:MM format. Example: '2:00 PM' becomes '14:00'" },
+                            seats: { type: "STRING", description: "Look specifically for Seat numbers, Rows, or Auditoriums. Examples: 'F-5, F-6', 'Row G Seats 12-13', or 'Auditorium 1, F5'. If not found, return empty." }
+                        },
+                        required: ["theater", "date", "time", "seats"]
+                    }
+                }
+            };
 
+            let retries = 3;
+            let delay = 1000;
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error("API Error: " + response.statusText);
+                    const result = await response.json();
+                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("No text returned");
+                    return JSON.parse(text);
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // Local Offline Scanner (Tesseract) Fallback
+        async function analyzeTicketWithOCR(imgEl) {
+            const worker = await Tesseract.createWorker('eng');
             const canvas = document.createElement('canvas');
-            canvas.width  = imgEl.naturalWidth  || imgEl.width;
+            canvas.width = imgEl.naturalWidth || imgEl.width;
             canvas.height = imgEl.naturalHeight || imgEl.height;
             canvas.getContext('2d').drawImage(imgEl, 0, 0);
 
-            const worker = await Tesseract.createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        const btn = document.getElementById('save-ticket-btn');
-                        if (btn) btn.innerText = `✨ Reading text... ${Math.round(m.progress*100)}%`;
-                    }
-                }
-            });
             const { data: { text } } = await worker.recognize(canvas);
             await worker.terminate();
 
-            console.log('[OCR raw]', JSON.stringify(text));
+            let date = "", time = "", seats = "", theater = "";
+            const currentYear = new Date().getFullYear();
 
-            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-            const full  = lines.join(' ');
-            const result = { theater: '', date: '', time: '', seats: '' };
-
-            // ── Month helpers ──
-            const MMAP = {
-                jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
-                january:1,february:2,march:3,april:4,june:6,july:7,august:8,
-                september:9,october:10,november:11,december:12
-            };
-            const toMo = s => { const k = s.toLowerCase().replace(/[^a-z]/g,''); return MMAP[k] || MMAP[k.slice(0,3)] || 0; };
-            const fmtDate = (mo, dy) => (mo && dy >= 1 && dy <= 31) ? `${currentYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}` : null;
-            const MON = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-            const DAY_NAMES = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/i;
-
-            // ── 1. DATE — parse FIRST so we can exclude date lines from theater search ──
-            // Build corpus: lines + adjacent pairs + full text
-            const corpus = [...lines];
-            for (let i = 0; i < lines.length - 1; i++) corpus.push(lines[i] + ' ' + lines[i+1]);
-            corpus.push(full);
-
-            // Track which original line indices contain the date (to exclude from theater)
-            const dateLineIndices = new Set();
-
-            for (const src of corpus) {
-                let m;
-                // ISO 2026-03-19
-                m = src.match(/(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-                if (m) { result.date = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`; break; }
-                // MM/DD/YYYY
-                m = src.match(/(\d{1,2})\/(\d{1,2})\/(20?\d{2})/);
-                if (m) { const yr = m[3].length===2?'20'+m[3]:m[3]; result.date = `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; break; }
-                // "Tuesday, March 10, 2026 at 7:25 PM" — day-of-week followed by full date
-                m = src.match(new RegExp('(?:' + DAY_NAMES.source.slice(4,-2) + ',?\\s+)?' + MON + '[\\s,]+(\\d{1,2})[,\\s]+(20\\d{2})', 'i'));
-                if (m) { const mo = toMo(m[2]); const d = fmtDate(mo, +m[3]); if (d) { result.date = d; break; } }
-                // "March 10" / "MAR 10"
-                m = src.match(new RegExp(MON + '[.\\s,]+(\\d{1,2})(?!\\d)', 'i'));
-                if (m) { const mo = toMo(m[1]); const d = fmtDate(mo, +m[2]); if (d) { result.date = d; break; } }
-                // "10 March"
-                m = src.match(new RegExp('(\\d{1,2})[.\\s]+' + MON + '(?!\\w)', 'i'));
-                if (m) { const mo = toMo(m[2]); const d = fmtDate(mo, +m[1]); if (d) { result.date = d; break; } }
+            // 1. Extract Time
+            const timeMatch = text.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?\b/i);
+            if (timeMatch) {
+                let hr = parseInt(timeMatch[1], 10);
+                let min = timeMatch[2];
+                let ampm = (timeMatch[3] || "").toUpperCase();
+                if (ampm === "PM" && hr < 12) hr += 12;
+                if (ampm === "AM" && hr === 12) hr = 0;
+                time = `${hr.toString().padStart(2, '0')}:${min}`;
             }
 
-            // Mark lines that contain a month word (so theater fallback avoids them)
-            const monthWordRe = new RegExp(MON, 'i');
-            lines.forEach((line, i) => {
-                if (monthWordRe.test(line) || DAY_NAMES.test(line) || /\b20\d{2}\b/.test(line)) {
-                    dateLineIndices.add(i);
-                }
-            });
-
-            // Last resort for split "MAR\n19": find month-only line then lone day number on next line
-            if (!result.date) {
-                for (let i = 0; i < lines.length - 1; i++) {
-                    const mo = toMo(lines[i]);
-                    if (mo) {
-                        // Check current line and next few lines for a standalone 1-2 digit number
-                        for (let j = i+1; j <= Math.min(i+3, lines.length-1); j++) {
-                            const nm = lines[j].match(/^(\d{1,2})$/);
-                            if (nm) { const d = fmtDate(mo, +nm[1]); if (d) { result.date = d; dateLineIndices.add(i); dateLineIndices.add(j); break; } }
-                        }
-                        if (result.date) break;
-                    }
+            // 2. Extract Date (Matches format from Harkins: "MAR 19")
+            const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+            const dateMatch = text.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[a-z]*\s+(\d{1,2})\b/i);
+            if (dateMatch) {
+                let m = months[dateMatch[1].toLowerCase()];
+                let d = dateMatch[2];
+                if (m && d) {
+                    date = `${currentYear}-${m.toString().padStart(2, '0')}-${d.padStart(2, '0')}`;
                 }
             }
 
-            // ── 2. TIME ──
-            let tm = full.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-            if (tm) {
-                let h = +tm[1]; const ap = tm[3].toUpperCase();
-                if (ap==='PM' && h!==12) h+=12;
-                if (ap==='AM' && h===12) h=0;
-                result.time = `${String(h).padStart(2,'0')}:${tm[2]}`;
+            // 3. Extract Seats (Matches format: "F-5, F-6")
+            const seatPattern = /\b([A-Z]-?\d{1,3}(?:(?:,\s*|\s+and\s+)[A-Z]-?\d{1,3})*)\b/gi;
+            let seatMatches = [...text.matchAll(seatPattern)].map(m => m[1]);
+            // Filter out movie formats/ratings that match the pattern by accident
+            seatMatches = seatMatches.filter(s => /[A-Z]-?\d/.test(s) && !/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i.test(s));
+            const validSeats = seatMatches.filter(s => s.length >= 2 && !['PG-13', '3D', '2D', '4DX'].includes(s.toUpperCase()));
+            if(validSeats.length > 0) {
+                seats = validSeats[validSeats.length - 1]; // Seats are usually lower on the ticket
             } else {
-                tm = full.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/);
-                if (tm) result.time = `${tm[1]}:${tm[2]}`;
+                // Secondary check for "Seats" explicitly
+                const explicitSeatMatch = text.match(/Seats?\s*[:\-]?\s*([A-Z0-9,\s\-]+)/i);
+                if (explicitSeatMatch) seats = explicitSeatMatch[1].trim();
             }
-
-            // ── 3. SEATS ──
-            // Prefer explicit "Seats" label
-            const seatLine = lines.find(l => /\bseats?\s*[:\-,\s]/i.test(l));
-            if (seatLine) {
-                const sm = seatLine.match(/\bseats?\s*[:\-]?\s*([A-Z\d][\w,\s\-]+)/i);
-                if (sm) result.seats = sm[1].replace(/\s+/g,' ').trim().replace(/\s*,\s*/g,', ');
-            }
-            if (!result.seats) {
-                const all = full.match(/\b[A-Z]\d{1,3}\b/g);
-                if (all) result.seats = [...new Set(all)].join(', ');
-            }
-
-            // ── 4. THEATER — use date-excluded lines, stop at word boundaries ──
-            const CHAINS = /\b(theatre|theaters?|cinema|cinemas|imax|amc|regal|cinemark|harkins|alamo|cinépolis|ipic)\b/i;
-            // First: look for a line containing a known chain name — take just that line, nothing more
-            for (let i = 0; i < lines.length; i++) {
-                if (dateLineIndices.has(i)) continue;
-                if (CHAINS.test(lines[i])) {
-                    // Only take up to the first comma or address-like content
-                    result.theater = lines[i].replace(/,.*$/, '').replace(/\d{4,}.*$/, '').trim();
-                    break;
+            
+            // 4. Extract Theater
+            const timeIndex = text.search(/\b\d{1,2}:\d{2}\s*(AM|PM|am|pm)?\b/i);
+            if (timeIndex > 0) {
+                const beforeTime = text.substring(Math.max(0, timeIndex - 40), timeIndex);
+                const segments = beforeTime.split('\n');
+                const targetLine = segments[segments.length - 1].trim();
+                if (targetLine.length > 3 && !targetLine.includes('•')) {
+                    theater = targetLine;
                 }
             }
-            // Fallback: "Name 18" style (word(s) + auditorium number) on a non-date, non-address line
-            if (!result.theater) {
-                for (let i = 0; i < lines.length; i++) {
-                    if (dateLineIndices.has(i)) continue;
-                    const line = lines[i];
-                    // Skip lines that look like addresses, ratings, times, or pure promo text
-                    if (/\d{4,}/.test(line)) continue;                 // long numbers = address
-                    if (/\b(PG|PG-13|R|G|NR)\b/.test(line)) continue; // rating
-                    if (/\b(AM|PM)\b/.test(line)) continue;            // time
-                    if (/^\d/.test(line)) continue;                     // starts with digit
-                    if (line.length < 5 || line.length > 50) continue; // too short or too long
-                    if (/^[A-Z]/.test(line) && /\d{1,2}$/.test(line)) {
-                        result.theater = line; break;
-                    }
-                }
-            }
-            // Final fallback: first reasonable-looking capitalized line
-            if (!result.theater) {
-                for (let i = 0; i < lines.length; i++) {
-                    if (dateLineIndices.has(i)) continue;
-                    const line = lines[i];
-                    if (/^[A-Z]/.test(line) && line.length >= 5 && line.length <= 50 &&
-                        !/^\d/.test(line) && !/\b(AM|PM|PG|Tickets?|Auditorium|Confirmation|Standard|Format|Luxury)\b/i.test(line)) {
-                        result.theater = line; break;
-                    }
-                }
+            if (!theater) {
+                // Chain regex fallback
+                const chainMatch = text.match(/\b(AMC|Regal|Cinemark|Harkins|Alamo|Megaplex|Marcus|Fountains\s\d+)[^\n]*/i);
+                if (chainMatch) theater = chainMatch[0].trim();
             }
 
-            console.log('[OCR result]', result);
-            return result;
+            return { theater, date, time, seats };
         }
         
         window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
@@ -3056,9 +3027,28 @@
                         showToast("✨ Barcode Auto-Detected!");
                     }
 
-                    // Extract ticket details with in-browser OCR (no API key needed)
+                    // Resize for Gemini/OCR to keep payload small
+                    let w = imgSource.width, h = imgSource.height;
+                    const MAX = 1200; 
+                    if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
+                    else if (h > MAX) { w *= MAX / h; h = MAX; }
+                    const gCanvas = document.createElement('canvas');
+                    gCanvas.width = w; gCanvas.height = h;
+                    gCanvas.getContext('2d').drawImage(imgSource, 0, 0, w, h);
+                    const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
+                    
                     try {
-                        const data = await analyzeTicketWithOCR(imgSource);
+                        let data;
+                        try {
+                            // Try Gemini First
+                            data = await analyzeTicketWithGemini(base64ForGemini);
+                        } catch (geminiErr) {
+                            // If Gemini fails (e.g. running locally without API key), fallback to robust offline OCR
+                            console.warn("Gemini AI unavailable, switching to local offline scanner...");
+                            saveBtn.innerText = "✨ Scanning text locally...";
+                            data = await analyzeTicketWithOCR(imgSource);
+                        }
+
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
                             if (data.date) document.getElementById('ticket-date').value = data.date;
@@ -3066,10 +3056,11 @@
                             if (data.seats) document.getElementById('ticket-seats').value = data.seats;
                             
                             if (data.theater || data.date || data.time || data.seats) showToast('✨ Ticket details extracted!');
+                            else showToast('Could not completely read text. Please review manually.', true);
                         }
                     } catch(err) {
-                        console.error("OCR failed:", err);
-                        showToast('Could not auto-read ticket — fill in manually.', true);
+                        console.error("All extraction methods failed:", err);
+                        showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
                         saveBtn.disabled = false;
@@ -3457,9 +3448,8 @@
                             
                             ${ticketsHtml}
                             
-                            <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; flex-direction: column; gap: 8px;">
-                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Scan New Ticket</button>
-                                ${linkExistingHtml}
+                            <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; justify-content:center; align-items:center;">
+                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Attach a Ticket to this Plan</button>
                             </div>
                         </div>
                         `;
