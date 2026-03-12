@@ -2840,7 +2840,7 @@
             if (!apiKey) {
                 throw new Error("No API key found. Please enter it in your Profile tab.");
             }
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             
             const [header, b64Data] = base64Image.split(',');
             const mimeType = header.split(';')[0].split(':')[1];
@@ -2977,10 +2977,17 @@
             }
 
             // 4. Theater Extraction
+            const isJunkLine = l =>
+                /https?:\/\/|\.com|\.net|\.org|tingservice|ticketmaster|fandango/i.test(l) || // URLs
+                /[+()]{2,}/.test(l) ||           // URL bar artifacts like "(M 9 ... + (3) :"
+                /^\s*\(/.test(l) ||              // starts with parenthesis (browser chrome)
+                /\d{5,}/.test(l) ||          // long numbers = address/phone
+                l.length < 4 || l.length > 60;
+
             for (let line of lines) {
-                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead|Fountains|Cinema|Theatre)\b/i.test(line)) {
-                    // Stop at the address part
-                    result.theater = line.replace(/\b\d{4,}\s+[A-Z].*/i, '').trim();
+                if (isJunkLine(line)) continue;
+                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead Fountains|Cinema|Theatre)\b/i.test(line)) {
+                    result.theater = line.replace(/,.*$/, '').replace(/\b\d{4,}.*$/, '').trim();
                     break;
                 }
             }
@@ -2988,13 +2995,12 @@
             // Fallback for independent theaters
             if (!result.theater) {
                 for (let line of lines) {
-                    if (line.length < 5 || line.length > 40) continue;
+                    if (isJunkLine(line)) continue;
                     if (/^\d/.test(line)) continue;
-                    if (/\b(PG|PG-13|R|G|NR|AM|PM|Auditorium|Seats?|Tickets?|Confirmation)\b/i.test(line)) continue;
+                    if (/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|Confirmation)\b/i.test(line)) continue;
                     if (line.match(new RegExp(`\\b(${monRegex})\\b`, 'i'))) continue;
-                    
                     if (/^[A-Z]/.test(line)) {
-                        result.theater = line;
+                        result.theater = line.replace(/,.*$/, '').trim();
                         break;
                     }
                 }
@@ -3026,8 +3032,8 @@
             
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
-            (function(){var _e=document.getElementById('ticket-cropper-img');if(_e)_e.src='';})();
-            (function(){var _e=document.getElementById('cropper-container');if(_e)_e.style.display='none';})();
+            document.getElementById('ticket-cropper-img').src = '';
+            document.getElementById('cropper-container').style.display = 'none';
 
             currentPlanTicketId = planId;
             closeModal('movie-modal');
@@ -3067,15 +3073,27 @@
                         qrBox.classList.remove('error');
                         qrStat.textContent = '✓ QR code detected automatically';
                         qrBox.style.display = 'block';
-                        (function(){var _e=document.getElementById('cropper-container');if(_e)_e.style.display='none';})();
+                        document.getElementById('cropper-container').style.display = 'none';
                     } else {
                         // Fallback to manual cropper if barcode not found
                         scannedQrBase64 = null;
                         qrBox.style.display = 'none';
-                        (function(){var _e=document.getElementById('cropper-container');if(_e)_e.style.display='block';})();
+                        document.getElementById('cropper-container').style.display = 'block';
                         
-                        // No cropper element in this build — just warn and continue to OCR
-                        showToast("No barcode auto-detected — fill in manually if needed.", false);
+                        const cropperImg = document.getElementById('ticket-cropper-img');
+                        cropperImg.src = ev.target.result;
+                        cropperImg.style.display = 'block';
+                        cropperImg.style.maxWidth = '100%';
+                        
+                        if(cropperInstance) cropperInstance.destroy();
+                        cropperInstance = new Cropper(cropperImg, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.6,
+                            background: false
+                        });
+                        showToast("Could not auto-detect barcode. Please box it manually.", true);
                     }
 
                     // Resize for Gemini/OCR to keep payload small
