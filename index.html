@@ -2759,55 +2759,49 @@
             openModal('qr-enlarge-modal');
         }
         
-        async function analyzeTicketWithGemini(base64Image) {
-            const apiKey = ""; // Canvas execution environment injects the key
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
+        async function analyzeTicketWithClaude(base64Image) {
             const [header, b64Data] = base64Image.split(',');
             const mimeType = header.split(';')[0].split(':')[1];
-            
             const currentYear = new Date().getFullYear();
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: `Extract the following from this movie ticket screenshot:
-1. Theater/Cinema name ('theater')
-2. Date in YYYY-MM-DD format. If it only says month and day (like 'MAR 19'), assume the year is ${currentYear} ('date')
-3. Showtime in HH:MM 24-hour format ('time')
-4. Seat numbers (e.g., 'F-5, F-6' or '18') ('seats')
 
-Return ONLY a raw JSON object. Example: {"theater":"Arrowhead Fountains 18", "date":"2026-03-19", "time":"14:00", "seats":"F-5, F-6"}` },
-                        { inlineData: { mimeType: mimeType, data: b64Data } }
+            const payload = {
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 300,
+                messages: [{
+                    role: "user",
+                    content: [
+                        {
+                            type: "image",
+                            source: { type: "base64", media_type: mimeType, data: b64Data }
+                        },
+                        {
+                            type: "text",
+                            text: `Extract the following from this movie ticket screenshot and return ONLY a raw JSON object with no extra text, no markdown, no code fences:
+1. "theater" — the theater/cinema name and auditorium (e.g. "Arrowhead Fountains 18")
+2. "date" — the date in YYYY-MM-DD format. If only month and day are shown (e.g. "MAR 19"), use the year ${currentYear}
+3. "time" — the showtime in HH:MM 24-hour format (e.g. "14:00")
+4. "seats" — seat numbers exactly as shown (e.g. "F-5, F-6")
+
+Example output: {"theater":"Arrowhead Fountains 18","date":"${currentYear}-03-19","time":"14:00","seats":"F-5, F-6"}
+
+If a field cannot be found, use an empty string for it.`
+                        }
                     ]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json"
-                }
+                }]
             };
 
-            let retries = 3;
-            let delay = 1000;
-            while (retries > 0) {
-                try {
-                    const response = await fetch(url, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload)
-                    });
-                    if (!response.ok) throw new Error("API Error: " + response.statusText);
-                    const result = await response.json();
-                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!text) throw new Error("No text returned");
-                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                    return JSON.parse(text);
-                } catch (e) {
-                    retries--;
-                    if (retries === 0) throw e;
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2;
-                }
-            }
+            const response = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error("API error: " + response.statusText);
+            const result = await response.json();
+            let text = result.content?.[0]?.text || '';
+            // Strip any accidental markdown fences
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(text);
         }
         
         window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
@@ -2877,7 +2871,7 @@ Return ONLY a raw JSON object. Example: {"theater":"Arrowhead Fountains 18", "da
                         background: false
                     });
 
-                    // Resize for Gemini to keep payload small
+                    // Resize image to keep API payload small
                     let w = imgSource.width, h = imgSource.height;
                     const MAX = 1200; 
                     if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
@@ -2885,11 +2879,11 @@ Return ONLY a raw JSON object. Example: {"theater":"Arrowhead Fountains 18", "da
                     const gCanvas = document.createElement('canvas');
                     gCanvas.width = w; gCanvas.height = h;
                     gCanvas.getContext('2d').drawImage(imgSource, 0, 0, w, h);
-                    const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
+                    const base64ForClaude = gCanvas.toDataURL('image/jpeg', 0.8);
                     
-                    // Trigger Gemini Extraction
+                    // Trigger Claude Vision Extraction
                     try {
-                        const data = await analyzeTicketWithGemini(base64ForGemini);
+                        const data = await analyzeTicketWithClaude(base64ForClaude);
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
                             if (data.date) document.getElementById('ticket-date').value = data.date;
@@ -2899,7 +2893,7 @@ Return ONLY a raw JSON object. Example: {"theater":"Arrowhead Fountains 18", "da
                             if (data.theater || data.date || data.time || data.seats) showToast('✨ Ticket details extracted!');
                         }
                     } catch(err) {
-                        console.error("Gemini Vision failed:", err);
+                        console.error("Claude Vision failed:", err);
                         showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
