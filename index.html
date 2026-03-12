@@ -3026,8 +3026,8 @@
             
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
-            document.getElementById('ticket-cropper-img').src = '';
-            document.getElementById('cropper-container').style.display = 'none';
+            const _ci = document.getElementById('ticket-cropper-img'); if (_ci) _ci.src = '';
+            const _cc = document.getElementById('cropper-container'); if (_cc) _cc.style.display = 'none';
 
             currentPlanTicketId = planId;
             closeModal('movie-modal');
