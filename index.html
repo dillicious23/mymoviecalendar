@@ -16,7 +16,7 @@
     <!-- Cropper.js for Manual Cropping (Fallback) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    
+
     <!-- ZXing Library for Barcode Detection -->
     <script src="https://unpkg.com/@zxing/library@latest"></script>
 
@@ -143,22 +143,44 @@
             transition: background 0.4s;
         }
 
-        .mobile-icon { display: none; }
-        
+        .mobile-icon {
+            display: none;
+        }
+
         @media (max-width: 768px) {
-            .hide-on-mobile { display: none !important; }
-            .mobile-icon { display: inline-block !important; }
-            
-            header { padding: 0.8rem 3%; }
-            header h1 { font-size: 1.25rem; }
-            .header-right { gap: 0.5rem; }
-            
+            .hide-on-mobile {
+                display: none !important;
+            }
+
+            .mobile-icon {
+                display: inline-block !important;
+            }
+
+            header {
+                padding: 0.8rem 3%;
+            }
+
+            header h1 {
+                font-size: 1.25rem;
+            }
+
+            .header-right {
+                gap: 0.5rem;
+            }
+
             #firebase-signin-btn {
                 padding: 0.4rem 0.7rem;
                 font-size: 0.8rem;
             }
-            .btn-header { padding: 0.4rem 0.6rem; }
-            #user-avatar { width: 28px; height: 28px; }
+
+            .btn-header {
+                padding: 0.4rem 0.6rem;
+            }
+
+            #user-avatar {
+                width: 28px;
+                height: 28px;
+            }
         }
 
         .container {
@@ -238,7 +260,9 @@
             display: inline-block;
         }
 
-        .rerelease-section { margin-bottom: 1.5rem; }
+        .rerelease-section {
+            margin-bottom: 1.5rem;
+        }
 
         .rerelease-header {
             margin: 0 0 0.8rem 0;
@@ -259,7 +283,9 @@
             padding-bottom: 0.5rem;
         }
 
-        .rerelease-track::-webkit-scrollbar { display: none; }
+        .rerelease-track::-webkit-scrollbar {
+            display: none;
+        }
 
         .rerelease-card {
             flex: 0 0 100px;
@@ -321,7 +347,10 @@
             transition: border-color 0.2s;
         }
 
-        #search-input:focus { outline: none; border-color: var(--primary); }
+        #search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
 
         #search-clear-btn {
             position: absolute;
@@ -336,7 +365,9 @@
             display: none;
         }
 
-        #search-clear-btn:hover { color: white; }
+        #search-clear-btn:hover {
+            color: white;
+        }
 
         .month-navigation {
             display: flex;
@@ -383,7 +414,9 @@
             font-weight: bold;
         }
 
-        .nav-btn:hover { background-color: #666; }
+        .nav-btn:hover {
+            background-color: #666;
+        }
 
         .grid {
             display: grid;
@@ -393,7 +426,10 @@
         }
 
         @media (min-width: 768px) {
-            .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1.5rem; }
+            .grid {
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                gap: 1.5rem;
+            }
         }
 
         .movie-card {
@@ -409,7 +445,9 @@
             overflow: hidden;
         }
 
-        .movie-card:hover { transform: translateY(-5px); }
+        .movie-card:hover {
+            transform: translateY(-5px);
+        }
 
         .movie-card img {
             width: 100%;
@@ -454,228 +492,1200 @@
             flex: 1;
         }
 
-        .btn:hover { opacity: 0.9; }
-        .btn:disabled { background-color: #555 !important; color: #aaa !important; cursor: not-allowed; }
-
-        .btn-add { background-color: var(--primary); padding: 0.5rem 0.2rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden; }
-        .btn-watched { background-color: #444; font-size: 1.1rem; padding: 0.2rem; flex: 0 0 35px; }
-        .btn-tickets { background-color: #007bff; width: 100%; margin-top: 1rem; padding: 0.8rem; display: flex; justify-content: center; align-items: center; gap: 8px; }
-        
-        .btn-outline {
-            background-color: transparent; border: 1px solid #555; color: white; padding: 0.6rem; border-radius: 6px; cursor: pointer; flex: 1; font-weight: bold; transition: all 0.2s;
+        .btn:hover {
+            opacity: 0.9;
         }
-        .btn-outline:hover { background-color: #333; border-color: #888; }
 
-        .google-btn { background-color: var(--google-blue); width: 100%; }
-        .sync-btn { background-color: var(--success-green); width: 100%; margin-top: 1rem; padding: 0.8rem; }
-        .loading { text-align: center; color: #aaa; grid-column: 1 / -1; padding: 2rem; }
+        .btn:disabled {
+            background-color: #555 !important;
+            color: #aaa !important;
+            cursor: not-allowed;
+        }
+
+        .btn-add {
+            background-color: var(--primary);
+            padding: 0.5rem 0.2rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .btn-watched {
+            background-color: #444;
+            font-size: 1.1rem;
+            padding: 0.2rem;
+            flex: 0 0 35px;
+        }
+
+        .btn-tickets {
+            background-color: #007bff;
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.8rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #555;
+            color: white;
+            padding: 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+            flex: 1;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-outline:hover {
+            background-color: #333;
+            border-color: #888;
+        }
+
+        .google-btn {
+            background-color: var(--google-blue);
+            width: 100%;
+        }
+
+        .sync-btn {
+            background-color: var(--success-green);
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.8rem;
+        }
+
+        .loading {
+            text-align: center;
+            color: #aaa;
+            grid-column: 1 / -1;
+            padding: 2rem;
+        }
 
         .drawer-backdrop {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 999; display: none; opacity: 0; transition: opacity 0.3s ease;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        .drawer-backdrop.show { display: block; opacity: 1; }
+
+        .drawer-backdrop.show {
+            display: block;
+            opacity: 1;
+        }
 
         .watchlist-drawer {
-            position: fixed; top: 0; right: -100%; width: 100%; max-width: 450px; height: 100vh; background-color: #1a1a1a; z-index: 1000; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -5px 0 25px rgba(0, 0, 0, 0.8);
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            background-color: #1a1a1a;
+            z-index: 1000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.8);
         }
-        .watchlist-drawer.open { right: 0; }
+
+        .watchlist-drawer.open {
+            right: 0;
+        }
 
         .drawer-header {
-            display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem 0 1.5rem; background-color: #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem 0 1.5rem;
+            background-color: #000;
         }
-        .drawer-header h2 { margin: 0; font-size: 1.5rem; }
-        .close-btn { background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; line-height: 1; }
+
+        .drawer-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+        }
 
         .drawer-tabs {
-            display: flex; background-color: #000; padding: 0 0.5rem; border-bottom: 1px solid #333; overflow-x: auto; scrollbar-width: none;
+            display: flex;
+            background-color: #000;
+            padding: 0 0.5rem;
+            border-bottom: 1px solid #333;
+            overflow-x: auto;
+            scrollbar-width: none;
         }
-        .drawer-tabs::-webkit-scrollbar { display: none; }
+
+        .drawer-tabs::-webkit-scrollbar {
+            display: none;
+        }
 
         .tab-btn {
-            background: none; border: none; color: #aaa; font-weight: bold; padding: 0.8rem 0.6rem; cursor: pointer; border-bottom: 3px solid transparent; flex: 1; font-size: 0.8rem; white-space: nowrap;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-weight: bold;
+            padding: 0.8rem 0.6rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            flex: 1;
+            font-size: 0.8rem;
+            white-space: nowrap;
         }
-        .tab-btn.active { color: white; border-bottom: 3px solid var(--primary); }
 
-        .drawer-content { flex: 1; overflow-y: auto; padding: 1.5rem; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .tab-btn.active {
+            color: white;
+            border-bottom: 3px solid var(--primary);
+        }
 
-        .drawer-footer { padding: 1.5rem; background-color: #111; border-top: 1px solid #333; }
+        .drawer-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
 
-        .list-container { list-style-type: none; padding: 0; margin: 0; }
-        .list-item { display: flex; align-items: center; gap: 1rem; padding: 0.8rem; background-color: #2b2b2b; border-radius: 8px; margin-bottom: 0.8rem; }
-        .list-item img { width: 50px; height: 75px; border-radius: 4px; object-fit: cover; background: #333; }
-        .list-item-info { flex: 1; overflow: hidden; min-width: 0; }
-        .list-item-info strong { display: block; font-size: 1rem; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .list-item-info small { color: #aaa; font-size: 0.8rem; }
+        .tab-content {
+            display: none;
+        }
 
-        .remove-btn { background: rgba(255, 68, 68, 0.1); border: none; color: #ff4444; cursor: pointer; font-weight: bold; font-size: 1.2rem; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .remove-btn:hover { background: rgba(255, 68, 68, 0.2); }
+        .tab-content.active {
+            display: block;
+        }
 
-        .diary-month-header { margin: 1.5rem 0 0.8rem 0; padding-bottom: 0.3rem; border-bottom: 1px solid #333; font-size: 1.2rem; color: var(--text-color); }
-        .diary-month-header:first-child { margin-top: 0; }
-        .diary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; }
-        .diary-card { background-color: #1e1e1e; border-radius: 8px; padding: 0.4rem; text-align: center; display: flex; flex-direction: column; position: relative; }
-        .diary-card img { width: 100%; border-radius: 4px; aspect-ratio: 2/3; object-fit: cover; background: #333; cursor: pointer; }
-        
-        .diary-card-remove { position: absolute; top: -5px; right: -5px; z-index: 10; background: #e50914; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); line-height: 1; padding-bottom: 2px; }
-        .diary-card-remove:hover { background: #ff4444; }
+        .drawer-footer {
+            padding: 1.5rem;
+            background-color: #111;
+            border-top: 1px solid #333;
+        }
 
-        .photo-btn { background: rgba(0, 0, 0, 0.6); border: 1px solid #444; color: white; border-radius: 4px; padding: 0.2rem 0; cursor: pointer; font-size: 0.75rem; margin-top: 0.3rem; width: 100%; display: flex; justify-content: center; align-items: center; gap: 4px; }
-        .photo-btn:hover { background: rgba(255, 255, 255, 0.1); }
+        .list-container {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.8rem;
+            background-color: #2b2b2b;
+            border-radius: 8px;
+            margin-bottom: 0.8rem;
+        }
+
+        .list-item img {
+            width: 50px;
+            height: 75px;
+            border-radius: 4px;
+            object-fit: cover;
+            background: #333;
+        }
+
+        .list-item-info {
+            flex: 1;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .list-item-info strong {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .list-item-info small {
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+
+        .remove-btn {
+            background: rgba(255, 68, 68, 0.1);
+            border: none;
+            color: #ff4444;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .remove-btn:hover {
+            background: rgba(255, 68, 68, 0.2);
+        }
+
+        .diary-month-header {
+            margin: 1.5rem 0 0.8rem 0;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #333;
+            font-size: 1.2rem;
+            color: var(--text-color);
+        }
+
+        .diary-month-header:first-child {
+            margin-top: 0;
+        }
+
+        .diary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .diary-card {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 0.4rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .diary-card img {
+            width: 100%;
+            border-radius: 4px;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            background: #333;
+            cursor: pointer;
+        }
+
+        .diary-card-remove {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            z-index: 10;
+            background: #e50914;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            line-height: 1;
+            padding-bottom: 2px;
+        }
+
+        .diary-card-remove:hover {
+            background: #ff4444;
+        }
+
+        .photo-btn {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #444;
+            color: white;
+            border-radius: 4px;
+            padding: 0.2rem 0;
+            cursor: pointer;
+            font-size: 0.75rem;
+            margin-top: 0.3rem;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .photo-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
 
         /* Tickets & Plans CSS */
         .ticket {
-            display: flex; background: #fff; color: #111; border-radius: 8px; margin-bottom: 1.2rem; position: relative; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+            display: flex;
+            background: #fff;
+            color: #111;
+            border-radius: 8px;
+            margin-bottom: 1.2rem;
+            position: relative;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
         }
-        .ticket::before, .ticket::after {
-            content: ''; position: absolute; width: 24px; height: 24px; background: #1a1a1a; border-radius: 50%; right: 108px; z-index: 2;
+
+        .ticket::before,
+        .ticket::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            right: 108px;
+            z-index: 2;
         }
-        .ticket::before { top: -12px; }
-        .ticket::after { bottom: -12px; }
+
+        .ticket::before {
+            top: -12px;
+        }
+
+        .ticket::after {
+            bottom: -12px;
+        }
 
         .ticket-info {
-            flex: 1; padding: 12px; border-right: 2px dashed #ccc; display: flex; gap: 12px; min-width: 0; position: relative;
+            flex: 1;
+            padding: 12px;
+            border-right: 2px dashed #ccc;
+            display: flex;
+            gap: 12px;
+            min-width: 0;
+            position: relative;
         }
-        .ticket-info img { width: 60px; height: 90px; border-radius: 4px; object-fit: cover; background: #ddd; }
-        
-        .ticket-details { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
-        .ticket-details h4 { margin: 0 0 4px 0; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ticket-details p { margin: 0; font-size: 0.8rem; color: #555; font-weight: bold; }
+
+        .ticket-info img {
+            width: 60px;
+            height: 90px;
+            border-radius: 4px;
+            object-fit: cover;
+            background: #ddd;
+        }
+
+        .ticket-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .ticket-details h4 {
+            margin: 0 0 4px 0;
+            font-size: 1.05rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ticket-details p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #555;
+            font-weight: bold;
+        }
 
         .ticket-qr {
-            width: 120px; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8f8f8; border-radius: 0 8px 8px 0;
+            width: 120px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8f8f8;
+            border-radius: 0 8px 8px 0;
         }
-        .ticket-qr img { width: 100%; border-radius: 4px; cursor: pointer; transition: transform 0.2s; }
-        .ticket-qr img:hover { transform: scale(1.05); }
-        
-        .plan-card { background: #2b2b2b; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; border: 1px solid #444; }
-        
-        .plan-header { display: flex; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #444; position: relative; }
-        
-        .plan-actions { position: absolute; top: 0; right: 0; display: flex; gap: 5px; }
-        .plan-action-btn { background: #444; border: none; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; }
-        .plan-action-btn:hover { background: #555; }
-        .plan-action-btn.delete:hover { background: var(--primary); }
-        
-        .plan-header img { width: 50px; height: 75px; border-radius: 4px; object-fit: cover; }
-        .plan-info h4 { margin: 0 0 5px 0; font-size: 1.1rem; padding-right: 80px; }
-        .plan-info p { margin: 0; font-size: 0.85rem; color: #aaa; }
-        
-        .plan-guests { display: flex; align-items: center; gap: -10px; }
-        .plan-guest-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #2b2b2b; background: #555; object-fit: cover; }
-        
-        .plan-tickets-area { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
-        .plan-tickets-area::-webkit-scrollbar { display: none; }
-        
-        .mini-ticket { background: #fff; border-radius: 6px; padding: 6px; display: flex; align-items: center; gap: 8px; min-width: 140px; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.5); position: relative; }
-        .mini-ticket img { width: 35px; height: 35px; border-radius: 4px; cursor: pointer; }
+
+        .ticket-qr img {
+            width: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .ticket-qr img:hover {
+            transform: scale(1.05);
+        }
+
+        .plan-card {
+            background: #2b2b2b;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #444;
+        }
+
+        .plan-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #444;
+            position: relative;
+        }
+
+        .plan-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            gap: 5px;
+        }
+
+        .plan-action-btn {
+            background: #444;
+            border: none;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .plan-action-btn:hover {
+            background: #555;
+        }
+
+        .plan-action-btn.delete:hover {
+            background: var(--primary);
+        }
+
+        .plan-header img {
+            width: 50px;
+            height: 75px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .plan-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 1.1rem;
+            padding-right: 80px;
+        }
+
+        .plan-info p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .plan-guests {
+            display: flex;
+            align-items: center;
+            gap: -10px;
+        }
+
+        .plan-guest-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #2b2b2b;
+            background: #555;
+            object-fit: cover;
+        }
+
+        .plan-tickets-area {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+            scrollbar-width: none;
+        }
+
+        .plan-tickets-area::-webkit-scrollbar {
+            display: none;
+        }
+
+        .mini-ticket {
+            background: #fff;
+            border-radius: 6px;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .mini-ticket img {
+            width: 35px;
+            height: 35px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
 
         /* Recap & Polaroids */
-        .year-select { background: #333; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: bold; font-size: 1rem; cursor: pointer; outline: none; }
-        .recap-export-wrapper { background: #121212; padding: 0; margin: 0; border-radius: 12px; }
-        .recap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; }
-        .recap-card { border-radius: 12px; padding: 15px; color: white; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); position: relative; overflow: hidden; }
-        .recap-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.2)); pointer-events: none; }
-        .recap-card>* { position: relative; z-index: 2; }
-        .wrap-1 { background: linear-gradient(135deg, #ff007a, #7a00ff); }
-        .wrap-2 { background: linear-gradient(135deg, #ff8c00, #e52d27); }
-        .wrap-3 { background: linear-gradient(135deg, #00c6ff, #0072ff); }
-        .wrap-4 { background: linear-gradient(135deg, #11998e, #38ef7d); }
-        .wrap-5 { background: linear-gradient(135deg, #8E2DE2, #4A00E0); }
-        .recap-label { font-size: 0.75rem; opacity: 0.9; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; margin-bottom: 5px; }
-        .recap-val-large { font-size: 2.5rem; font-weight: 900; line-height: 1; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); }
-        .recap-val-medium { font-size: 1.1rem; font-weight: bold; line-height: 1.2; text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
+        .year-select {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            outline: none;
+        }
 
-        .memories-header { margin: 2rem 0 1rem; font-size: 1.3rem; border-bottom: 1px solid #333; padding-bottom: 0.5rem; color: white; }
-        .polaroid-track { display: flex; gap: 1.5rem; overflow-x: auto; padding: 1rem 0.5rem 2rem 0.5rem; scroll-snap-type: x mandatory; scrollbar-width: none; }
-        .polaroid-track::-webkit-scrollbar { display: none; }
-        .polaroid { flex: 0 0 160px; scroll-snap-align: center; background: #f8f9fa; padding: 10px 10px 25px 10px; border-radius: 4px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6); cursor: pointer; transition: transform 0.3s, z-index 0.3s; }
-        .polaroid:hover { transform: scale(1.05) translateY(-5px) !important; z-index: 10; }
-        .polaroid img { width: 100%; height: 180px; object-fit: cover; background: #333; }
-        .polaroid-caption { color: #111; font-weight: bold; text-align: center; margin-top: 12px; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .recap-export-wrapper {
+            background: #121212;
+            padding: 0;
+            margin: 0;
+            border-radius: 12px;
+        }
 
-        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; margin-top: 1rem; }
-        .file-upload-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; }
+        .recap-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .recap-card {
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recap-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.2));
+            pointer-events: none;
+        }
+
+        .recap-card>* {
+            position: relative;
+            z-index: 2;
+        }
+
+        .wrap-1 {
+            background: linear-gradient(135deg, #ff007a, #7a00ff);
+        }
+
+        .wrap-2 {
+            background: linear-gradient(135deg, #ff8c00, #e52d27);
+        }
+
+        .wrap-3 {
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
+        }
+
+        .wrap-4 {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+        }
+
+        .wrap-5 {
+            background: linear-gradient(135deg, #8E2DE2, #4A00E0);
+        }
+
+        .recap-label {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .recap-val-large {
+            font-size: 2.5rem;
+            font-weight: 900;
+            line-height: 1;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .recap-val-medium {
+            font-size: 1.1rem;
+            font-weight: bold;
+            line-height: 1.2;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .memories-header {
+            margin: 2rem 0 1rem;
+            font-size: 1.3rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.5rem;
+            color: white;
+        }
+
+        .polaroid-track {
+            display: flex;
+            gap: 1.5rem;
+            overflow-x: auto;
+            padding: 1rem 0.5rem 2rem 0.5rem;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+
+        .polaroid-track::-webkit-scrollbar {
+            display: none;
+        }
+
+        .polaroid {
+            flex: 0 0 160px;
+            scroll-snap-align: center;
+            background: #f8f9fa;
+            padding: 10px 10px 25px 10px;
+            border-radius: 4px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+            cursor: pointer;
+            transition: transform 0.3s, z-index 0.3s;
+        }
+
+        .polaroid:hover {
+            transform: scale(1.05) translateY(-5px) !important;
+            z-index: 10;
+        }
+
+        .polaroid img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: #333;
+        }
+
+        .polaroid-caption {
+            color: #111;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 12px;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .file-upload-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+        }
 
         /* Modals */
-        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
-        .modal-content { background: #1e1e1e; width: 100%; max-width: 500px; border-radius: 12px; padding: 1.5rem; position: relative; max-height: 90vh; overflow-y: auto; }
-        .modal-close { position: absolute; top: 10px; right: 10px; background: #333; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-weight: bold; z-index: 10; }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
 
-        .movie-details-header { display: flex; gap: 1rem; margin-bottom: 1rem; }
-        .movie-details-header img { width: 100px; border-radius: 8px; }
-        .movie-details-info h2 { margin: 0 0 0.5rem 0; }
-        .tag { background: #333; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; margin-right: 0.5rem; }
+        .modal-content {
+            background: #1e1e1e;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
 
-        .modal-input-group { margin-bottom: 1rem; text-align: left; position: relative; }
-        .modal-input-group label { display: block; margin-bottom: 0.4rem; color: #ccc; font-size: 0.85rem; font-weight: bold; }
-        .modal-input-group input { width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid #444; background: #222; color: white; font-size: 1rem; font-family: inherit; }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .movie-details-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .movie-details-header img {
+            width: 100px;
+            border-radius: 8px;
+        }
+
+        .movie-details-info h2 {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .tag {
+            background: #333;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+
+        .modal-input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+            position: relative;
+        }
+
+        .modal-input-group label {
+            display: block;
+            margin-bottom: 0.4rem;
+            color: #ccc;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .modal-input-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+            font-size: 1rem;
+            font-family: inherit;
+        }
 
         /* Star Rating */
-        .rate-fieldset { border: none; padding: 0; margin: 1rem auto; width: fit-content; display: flex; flex-direction: row-reverse; justify-content: center; }
-        .rate-fieldset input { display: none; }
-        .rate-fieldset label { width: 1.5rem; height: 3rem; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23444'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>"); background-size: 3rem 3rem; background-repeat: no-repeat; }
-        .rate-fieldset label.half { background-position: left center; }
-        .rate-fieldset label.full { background-position: right center; }
-        .rate-fieldset input:checked~label, .rate-fieldset label:hover, .rate-fieldset label:hover~label { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f5c518'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>"); }
+        .rate-fieldset {
+            border: none;
+            padding: 0;
+            margin: 1rem auto;
+            width: fit-content;
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: center;
+        }
 
-        .btn-header { background-color: var(--secondary); border: 1px solid #444; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; flex: none; }
-        .badge { background-color: var(--primary); color: white; padding: 0.1rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .rate-fieldset input {
+            display: none;
+        }
 
-        #toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: #333; color: white; padding: 0.8rem 1.5rem; border-radius: 30px; z-index: 3000; opacity: 0; pointer-events: none; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); font-weight: bold; text-align: center; max-width: 90%; }
-        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .rate-fieldset label {
+            width: 1.5rem;
+            height: 3rem;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23444'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>");
+            background-size: 3rem 3rem;
+            background-repeat: no-repeat;
+        }
 
-        .photo-upload-btn { background: #333; border: 1px dashed #555; padding: 0.8rem; border-radius: 8px; width: 100%; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 1rem; transition: background 0.2s; }
-        .photo-upload-btn:hover { background: #444; }
-        .photo-preview-box { position: relative; display: none; margin-bottom: 1rem; border-radius: 8px; overflow: hidden; background: #000; }
-        .photo-preview-box img { width: 100%; max-height: 250px; object-fit: contain; display: block; }
-        .photo-remove-badge { position: absolute; top: 10px; right: 10px; background: rgba(229, 9, 20, 0.9); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5); }
+        .rate-fieldset label.half {
+            background-position: left center;
+        }
+
+        .rate-fieldset label.full {
+            background-position: right center;
+        }
+
+        .rate-fieldset input:checked~label,
+        .rate-fieldset label:hover,
+        .rate-fieldset label:hover~label {
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f5c518'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>");
+        }
+
+        .btn-header {
+            background-color: var(--secondary);
+            border: 1px solid #444;
+            padding: 0.6rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: none;
+        }
+
+        .badge {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.1rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #333;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 30px;
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            font-weight: bold;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .photo-upload-btn {
+            background: #333;
+            border: 1px dashed #555;
+            padding: 0.8rem;
+            border-radius: 8px;
+            width: 100%;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 1rem;
+            transition: background 0.2s;
+        }
+
+        .photo-upload-btn:hover {
+            background: #444;
+        }
+
+        .photo-preview-box {
+            position: relative;
+            display: none;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .photo-preview-box img {
+            width: 100%;
+            max-height: 250px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .photo-remove-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(229, 9, 20, 0.9);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
 
         /* Friends Tab */
-        .friend-code-box { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #3a3a5c; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
-        .friend-code-label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; font-weight: bold; }
-        .friend-code-display { display: flex; align-items: center; gap: 0.6rem; }
-        #my-friend-code { font-family: 'Courier New', monospace; font-size: 1.3rem; font-weight: bold; letter-spacing: 3px; color: #fff; flex: 1; }
-        #copy-code-btn { background: var(--primary); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; flex-shrink: 0; }
-        #copy-code-btn:hover { opacity: 0.85; }
-        .friend-code-hint { font-size: 0.75rem; color: #666; margin-top: 0.5rem; }
+        .friend-code-box {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid #3a3a5c;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
 
-        .add-friend-section { margin-bottom: 1.2rem; }
-        .add-friend-section label { font-size: 0.8rem; color: #aaa; display: block; margin-bottom: 0.4rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-        .add-friend-row { display: flex; gap: 0.5rem; }
-        #friend-code-input { flex: 1; background: #2b2b2b; border: 1px solid #444; color: white; padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.9rem; font-family: 'Courier New', monospace; letter-spacing: 2px; text-transform: uppercase; }
-        #friend-code-input:focus { outline: none; border-color: var(--primary); }
-        #add-friend-btn { background: var(--primary); border: none; color: white; padding: 0.6rem 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; white-space: nowrap; }
-        #add-friend-btn:hover { opacity: 0.85; }
+        .friend-code-label {
+            font-size: 0.75rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
 
-        .friends-section-label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold; margin-bottom: 0.8rem; }
-        .friend-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem; background: #2b2b2b; border-radius: 10px; margin-bottom: 0.7rem; cursor: pointer; transition: background 0.2s; }
-        .friend-item:hover { background: #333; }
-        .friend-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #444; flex-shrink: 0; border: 2px solid #555; }
-        .friend-avatar-placeholder { width: 44px; height: 44px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; border: 2px solid #444; }
-        .friend-info { flex: 1; min-width: 0; }
-        .friend-info strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .friend-info small { color: #888; font-size: 0.78rem; }
+        .friend-code-display {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        #my-friend-code {
+            font-family: 'Courier New', monospace;
+            font-size: 1.3rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+            color: #fff;
+            flex: 1;
+        }
+
+        #copy-code-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        #copy-code-btn:hover {
+            opacity: 0.85;
+        }
+
+        .friend-code-hint {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .add-friend-section {
+            margin-bottom: 1.2rem;
+        }
+
+        .add-friend-section label {
+            font-size: 0.8rem;
+            color: #aaa;
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .add-friend-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        #friend-code-input {
+            flex: 1;
+            background: #2b2b2b;
+            border: 1px solid #444;
+            color: white;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #friend-code-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        #add-friend-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        #add-friend-btn:hover {
+            opacity: 0.85;
+        }
+
+        .friends-section-label {
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: bold;
+            margin-bottom: 0.8rem;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.8rem;
+            background: #2b2b2b;
+            border-radius: 10px;
+            margin-bottom: 0.7rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .friend-item:hover {
+            background: #333;
+        }
+
+        .friend-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #444;
+            flex-shrink: 0;
+            border: 2px solid #555;
+        }
+
+        .friend-avatar-placeholder {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+            border: 2px solid #444;
+        }
+
+        .friend-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .friend-info strong {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .friend-info small {
+            color: #888;
+            font-size: 0.78rem;
+        }
 
         /* Friend Profile Modal */
-        #friend-profile-modal .modal-content { max-width: 520px; padding: 0; overflow: hidden; }
-        .friend-modal-header { background: linear-gradient(135deg, #1a1a1a, #0d0d0d); padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid #333; }
-        .friend-modal-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); flex-shrink: 0; }
-        .friend-modal-name { font-size: 1.2rem; font-weight: bold; }
-        .friend-modal-subtitle { font-size: 0.8rem; color: #aaa; margin-top: 2px; }
-        .friend-modal-body { padding: 1.2rem 1.5rem; max-height: calc(90vh - 100px); overflow-y: auto; }
-        .friend-year-select { background: #333; color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 20px; font-weight: bold; font-size: 0.9rem; cursor: pointer; outline: none; }
+        #friend-profile-modal .modal-content {
+            max-width: 520px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .friend-modal-header {
+            background: linear-gradient(135deg, #1a1a1a, #0d0d0d);
+            padding: 1.2rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid #333;
+        }
+
+        .friend-modal-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary);
+            flex-shrink: 0;
+        }
+
+        .friend-modal-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .friend-modal-subtitle {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 2px;
+        }
+
+        .friend-modal-body {
+            padding: 1.2rem 1.5rem;
+            max-height: calc(90vh - 100px);
+            overflow-y: auto;
+        }
+
+        .friend-year-select {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+        }
 
         /* Sign-in prompt banner */
-        .signin-prompt { background: linear-gradient(135deg, #1a1a2e, #16213e); border: 1px solid #3a3a5c; border-radius: 10px; padding: 1.2rem; text-align: center; margin-bottom: 1.5rem; }
-        .signin-prompt p { margin: 0 0 0.8rem; color: #aaa; font-size: 0.9rem; }
-        .signin-prompt button { background: white; color: #333; border: none; padding: 0.6rem 1.2rem; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px; }
-        .signin-prompt button:hover { background: #eee; }
-        
+        .signin-prompt {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px solid #3a3a5c;
+            border-radius: 10px;
+            padding: 1.2rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .signin-prompt p {
+            margin: 0 0 0.8rem;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .signin-prompt button {
+            background: white;
+            color: #333;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .signin-prompt button:hover {
+            background: #eee;
+        }
+
         /* Cropper Overrides - Fix Touch Issues */
-        .cropper-container, .cropper-drag-box, .cropper-crop-box, .cropper-view-box, .cropper-face {
-            border-radius: 8px; touch-action: none; -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important;
+        .cropper-container,
+        .cropper-drag-box,
+        .cropper-crop-box,
+        .cropper-view-box,
+        .cropper-face {
+            border-radius: 8px;
+            touch-action: none;
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
         }
     </style>
 </head>
@@ -691,7 +1701,8 @@
             <button id="firebase-signin-btn" onclick="firebaseSignIn()">
                 <span class="hide-on-mobile">☁ </span>Sign In
             </button>
-            <img id="user-avatar" src="" alt="avatar" style="display: none;" title="Profile & Settings" onclick="openProfileDrawer()">
+            <img id="user-avatar" src="" alt="avatar" style="display: none;" title="Profile & Settings"
+                onclick="openProfileDrawer()">
             <button id="watchlist-toggle-btn" class="btn btn-header">
                 <span class="hide-on-mobile">Menu</span>
                 <span class="mobile-icon" style="font-size: 1.1rem; line-height: 1;">☰</span>
@@ -773,11 +1784,17 @@
 
             <!-- PROFILE TAB -->
             <div id="tab-profile" class="tab-content">
-                <div id="profile-account-section" style="display: none; align-items: center; gap: 1rem; background: #222; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #333;">
-                    <img id="profile-drawer-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+                <div id="profile-account-section"
+                    style="display: none; align-items: center; gap: 1rem; background: #222; padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid #333;">
+                    <img id="profile-drawer-avatar" src=""
+                        style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
                     <div style="flex: 1; min-width: 0;">
-                        <h3 id="profile-drawer-name" style="margin: 0 0 0.2rem 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">User</h3>
-                        <p id="profile-drawer-email" style="margin: 0; color: #aaa; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">email</p>
+                        <h3 id="profile-drawer-name"
+                            style="margin: 0 0 0.2rem 0; font-size: 1.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            User</h3>
+                        <p id="profile-drawer-email"
+                            style="margin: 0; color: #aaa; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            email</p>
                     </div>
                     <button class="drawer-signout-btn" onclick="firebaseSignOut()">Sign Out</button>
                 </div>
@@ -785,12 +1802,16 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.8rem;">
                     <h3 style="margin:0;">Year in Review</h3>
                     <div style="display:flex; gap: 8px;">
-                        <button id="share-recap-btn" class="btn" style="background: var(--ig-gradient); padding: 0.4rem 0.8rem; margin: 0;">Share 📸</button>
+                        <button id="share-recap-btn" class="btn"
+                            style="background: var(--ig-gradient); padding: 0.4rem 0.8rem; margin: 0;">Share
+                            📸</button>
                         <select id="stats-year-selector" class="year-select"></select>
                     </div>
                 </div>
                 <div id="recap-export-area" class="recap-export-wrapper">
-                    <h2 id="export-title" style="margin-top:0; text-align:center; display:none; color:white; font-size: 1.8rem; margin-bottom: 1rem;"></h2>
+                    <h2 id="export-title"
+                        style="margin-top:0; text-align:center; display:none; color:white; font-size: 1.8rem; margin-bottom: 1rem;">
+                    </h2>
                     <div class="recap-grid">
                         <div class="recap-card wrap-1">
                             <div class="recap-label">Movies Logged</div>
@@ -803,10 +1824,13 @@
                         <div class="recap-card wrap-5" style="grid-column: span 2;">
                             <div class="recap-label">Top Rated Watch</div>
                             <div style="display:flex; align-items:center; gap: 15px; margin-top:5px;">
-                                <img id="recap-fav-poster" crossorigin="anonymous" src="" style="width: 60px; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); object-fit: cover; aspect-ratio: 2/3;">
+                                <img id="recap-fav-poster" crossorigin="anonymous" src=""
+                                    style="width: 60px; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); object-fit: cover; aspect-ratio: 2/3;">
                                 <div style="min-width:0; overflow:hidden;">
-                                    <div id="recap-fav-title" class="recap-val-medium" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">N/A</div>
-                                    <div style="color:var(--gold); font-weight:bold; font-size:1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); margin-top: 3px;">
+                                    <div id="recap-fav-title" class="recap-val-medium"
+                                        style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">N/A</div>
+                                    <div
+                                        style="color:var(--gold); font-weight:bold; font-size:1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); margin-top: 3px;">
                                         ★ <span id="recap-fav-rating">0.0</span></div>
                                 </div>
                             </div>
@@ -814,7 +1838,8 @@
                         <div class="recap-card wrap-3">
                             <div class="recap-label">Busiest Month</div>
                             <div class="recap-val-medium" id="recap-month">N/A</div>
-                            <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;" id="recap-month-count"></div>
+                            <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;" id="recap-month-count">
+                            </div>
                         </div>
                         <div class="recap-card wrap-4">
                             <div class="recap-label">Favorite Day</div>
@@ -822,7 +1847,8 @@
                             <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;">Most active watch day</div>
                         </div>
                     </div>
-                    <div id="export-watermark" style="text-align: center; color: #888; font-size: 0.85rem; margin-top: 1.5rem; display: none; font-weight: bold; letter-spacing: 1px;">
+                    <div id="export-watermark"
+                        style="text-align: center; color: #888; font-size: 0.85rem; margin-top: 1.5rem; display: none; font-weight: bold; letter-spacing: 1px;">
                         🍿 LOGGED WITH MOVIE TRACKER
                     </div>
                 </div>
@@ -832,9 +1858,11 @@
                 </div>
                 <div style="background: #222; padding: 1.5rem; border-radius: 10px; margin-top: 1.5rem;">
                     <h3 style="margin-top:0;">Letterboxd Import</h3>
-                    <p style="font-size:0.85rem; color:#aaa;">Upload your exported <b>diary.csv</b> file. We will fetch official posters and merge it with your list.</p>
+                    <p style="font-size:0.85rem; color:#aaa;">Upload your exported <b>diary.csv</b> file. We will fetch
+                        official posters and merge it with your list.</p>
                     <div class="file-upload-wrapper">
-                        <button id="import-btn-text" class="btn" style="background:#00e054; width:100%; pointer-events: none;">Choose diary.csv</button>
+                        <button id="import-btn-text" class="btn"
+                            style="background:#00e054; width:100%; pointer-events: none;">Choose diary.csv</button>
                         <input type="file" id="letterboxd-upload" accept=".csv">
                     </div>
                 </div>
@@ -844,10 +1872,12 @@
         <div class="drawer-footer" id="drawer-footer-sync">
             <div id="auth-section">
                 <button id="auth-btn" class="btn google-btn">Connect Google Calendar</button>
-                <div id="auth-status" style="text-align: center; margin-top: 0.8rem; font-size: 0.9rem; color: #aaa;">Not connected</div>
+                <div id="auth-status" style="text-align: center; margin-top: 0.8rem; font-size: 0.9rem; color: #aaa;">
+                    Not connected</div>
             </div>
             <button id="sync-btn" class="btn sync-btn" disabled>Sync to Calendar</button>
-            <p id="sync-status" style="text-align: center; margin-top: 1rem; font-size: 0.9rem; min-height: 1.2rem;"></p>
+            <p id="sync-status" style="text-align: center; margin-top: 1rem; font-size: 0.9rem; min-height: 1.2rem;">
+            </p>
         </div>
     </div>
 
@@ -870,41 +1900,53 @@
             <p id="modal-overview" style="font-size: 0.95rem; line-height: 1.4; color: #ddd;"></p>
             <h4 style="margin-bottom: 0.5rem;">Top Cast</h4>
             <p id="modal-cast" style="font-size: 0.9rem; color: #aaa; margin-bottom: 1.5rem;"></p>
-            
+
             <button id="modal-showtimes-btn" class="btn btn-tickets">🎟️ Find Local Showtimes</button>
-            
+
             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                 <button class="btn btn-outline" onclick="openTicketModal()">📱 Save Ticket</button>
                 <button class="btn btn-outline" onclick="openPlanModal()">🍿 Plan with Friends</button>
             </div>
         </div>
     </div>
-    
+
     <!-- Ticket Builder Modal -->
     <div id="ticket-builder-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('ticket-builder-modal')">&times;</button>
             <h3 style="margin-top:0;">Save Ticket</h3>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll extract the text and Aztec code automatically.</p>
-            
-            <button class="photo-upload-btn" id="trigger-ticket-upload" onclick="document.getElementById('ticket-upload-input').click()">
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll
+                extract the text and Aztec code automatically.</p>
+
+            <button class="photo-upload-btn" id="trigger-ticket-upload"
+                onclick="document.getElementById('ticket-upload-input').click()">
                 <span style="font-size: 1.5rem;">📸</span> Select Ticket Screenshot
             </button>
             <input type="file" id="ticket-upload-input" accept="image/*" style="display:none;">
-            
+
             <!-- Fallback Cropper if Auto-Detect Fails -->
             <div id="cropper-container" style="display: none; margin-bottom: 1rem;">
-                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Could not auto-detect barcode. Box it manually (Pan & Zoom supported):</p>
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Could not
+                    auto-detect barcode. Box it manually (Pan & Zoom supported):</p>
                 <div style="height: 270px; width: 100%; overflow: hidden;">
                     <img id="ticket-cropper-img" src="" style="max-width: 100%; display:block;">
                 </div>
             </div>
-            
+
             <div id="ticket-details-form" style="display: none; text-align: left;">
+
+                <!-- QR Preview Added Here -->
+                <div id="qr-preview-container" style="display: none; text-align: center; margin-bottom: 1rem; background: #111; padding: 10px; border-radius: 8px;">
+                    <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem; margin-top: 0;">✨ Auto-detected Barcode:</p>
+                    <img id="qr-preview-img" src="" style="width: 150px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+                </div>
+
                 <div class="modal-input-group">
                     <label>Theater / Cinema Name</label>
                     <input type="text" id="ticket-theater" placeholder="Search for theater...">
-                    <div id="ticket-theater-autocomplete" style="position:absolute; top:100%; left:0; right:0; background:#222; border:1px solid #444; z-index:100; max-height:150px; overflow-y:auto; display:none; border-radius: 4px;"></div>
+                    <div id="ticket-theater-autocomplete"
+                        style="position:absolute; top:100%; left:0; right:0; background:#222; border:1px solid #444; z-index:100; max-height:150px; overflow-y:auto; display:none; border-radius: 4px;">
+                    </div>
                 </div>
                 <div class="modal-input-group" style="display:flex; gap: 10px;">
                     <div style="flex:1;">
@@ -920,22 +1962,27 @@
                     <label>Seats</label>
                     <input type="text" id="ticket-seats" placeholder="e.g. F-5, F-6">
                 </div>
-                <button class="btn btn-add" id="save-ticket-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;">Generate Digital Ticket</button>
+                <button class="btn btn-add" id="save-ticket-btn"
+                    style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;">Generate Digital
+                    Ticket</button>
             </div>
         </div>
     </div>
-    
+
     <!-- Plan Movie Night Modal -->
     <div id="plan-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: left;">
             <button class="modal-close" onclick="closeModal('plan-modal')">&times;</button>
             <h3 style="margin-top:0;" id="plan-modal-title">Plan a Watch</h3>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Set the details and invite your friends.</p>
-            
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Set the details and invite your friends.
+            </p>
+
             <div class="modal-input-group" style="position: relative;">
                 <label>Theater Location (or "My House")</label>
                 <input type="text" id="plan-location" placeholder="Search for theater...">
-                <div id="theater-autocomplete" style="position:absolute; top:100%; left:0; right:0; background:#222; border:1px solid #444; z-index:100; max-height:150px; overflow-y:auto; display:none; border-radius: 4px;"></div>
+                <div id="theater-autocomplete"
+                    style="position:absolute; top:100%; left:0; right:0; background:#222; border:1px solid #444; z-index:100; max-height:150px; overflow-y:auto; display:none; border-radius: 4px;">
+                </div>
             </div>
             <div class="modal-input-group" style="display:flex; gap: 10px;">
                 <div style="flex:1;">
@@ -947,13 +1994,17 @@
                     <input type="time" id="plan-time">
                 </div>
             </div>
-            
+
             <div class="modal-input-group">
                 <label>Invite Friends</label>
-                <div id="plan-friends-list" style="background: #222; border: 1px solid #444; border-radius: 6px; padding: 0.8rem; max-height: 150px; overflow-y: auto;"></div>
+                <div id="plan-friends-list"
+                    style="background: #222; border: 1px solid #444; border-radius: 6px; padding: 0.8rem; max-height: 150px; overflow-y: auto;">
+                </div>
             </div>
-            
-            <button class="btn btn-add" id="save-plan-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;" onclick="savePlan()">Send Invites</button>
+
+            <button class="btn btn-add" id="save-plan-btn"
+                style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;" onclick="savePlan()">Send
+                Invites</button>
         </div>
     </div>
 
@@ -961,27 +2012,35 @@
     <div id="rating-modal" class="modal-backdrop">
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('rating-modal')">&times;</button>
-            <h3 style="margin-top:0;">How was <span id="rating-movie-title" style="color:var(--primary);">it</span>?</h3>
+            <h3 style="margin-top:0;">How was <span id="rating-movie-title" style="color:var(--primary);">it</span>?
+            </h3>
             <fieldset class="rate-fieldset">
                 <input type="radio" id="star5" name="rating" value="5" /><label class="full" for="star5"></label>
-                <input type="radio" id="star4half" name="rating" value="4.5" /><label class="half" for="star4half"></label>
+                <input type="radio" id="star4half" name="rating" value="4.5" /><label class="half"
+                    for="star4half"></label>
                 <input type="radio" id="star4" name="rating" value="4" /><label class="full" for="star4"></label>
-                <input type="radio" id="star3half" name="rating" value="3.5" /><label class="half" for="star3half"></label>
+                <input type="radio" id="star3half" name="rating" value="3.5" /><label class="half"
+                    for="star3half"></label>
                 <input type="radio" id="star3" name="rating" value="3" /><label class="full" for="star3"></label>
-                <input type="radio" id="star2half" name="rating" value="2.5" /><label class="half" for="star2half"></label>
+                <input type="radio" id="star2half" name="rating" value="2.5" /><label class="half"
+                    for="star2half"></label>
                 <input type="radio" id="star2" name="rating" value="2" /><label class="full" for="star2"></label>
-                <input type="radio" id="star1half" name="rating" value="1.5" /><label class="half" for="star1half"></label>
+                <input type="radio" id="star1half" name="rating" value="1.5" /><label class="half"
+                    for="star1half"></label>
                 <input type="radio" id="star1" name="rating" value="1" /><label class="full" for="star1"></label>
-                <input type="radio" id="starhalf" name="rating" value="0.5" /><label class="half" for="starhalf"></label>
+                <input type="radio" id="starhalf" name="rating" value="0.5" /><label class="half"
+                    for="starhalf"></label>
             </fieldset>
-            <button class="photo-upload-btn" id="trigger-photo-upload"><span style="font-size: 1.5rem;">📸</span> Attach Memory Photo</button>
+            <button class="photo-upload-btn" id="trigger-photo-upload"><span style="font-size: 1.5rem;">📸</span> Attach
+                Memory Photo</button>
             <input type="file" id="photo-upload-input" accept="image/*" style="display:none;">
             <div id="photo-preview-container" class="photo-preview-box">
                 <button class="photo-remove-badge" id="remove-photo-btn" title="Remove Photo">&times;</button>
                 <img id="photo-preview-img" src="">
             </div>
             <p style="font-size:0.8rem; color:#aaa; margin-bottom: 1rem;">Logging for today's date.</p>
-            <button class="btn btn-add" id="submit-rating-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem;">Save to Diary</button>
+            <button class="btn btn-add" id="submit-rating-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem;">Save
+                to Diary</button>
         </div>
     </div>
 
@@ -991,28 +2050,43 @@
             <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
             <h3 style="margin-top:0;">Edit <span id="edit-movie-title" style="color:var(--primary);"></span></h3>
             <fieldset class="rate-fieldset">
-                <input type="radio" id="e-star5" name="edit-rating" value="5" /><label class="full" for="e-star5"></label>
-                <input type="radio" id="e-star4half" name="edit-rating" value="4.5" /><label class="half" for="e-star4half"></label>
-                <input type="radio" id="e-star4" name="edit-rating" value="4" /><label class="full" for="e-star4"></label>
-                <input type="radio" id="e-star3half" name="edit-rating" value="3.5" /><label class="half" for="e-star3half"></label>
-                <input type="radio" id="e-star3" name="edit-rating" value="3" /><label class="full" for="e-star3"></label>
-                <input type="radio" id="e-star2half" name="edit-rating" value="2.5" /><label class="half" for="e-star2half"></label>
-                <input type="radio" id="e-star2" name="edit-rating" value="2" /><label class="full" for="e-star2"></label>
-                <input type="radio" id="e-star1half" name="edit-rating" value="1.5" /><label class="half" for="e-star1half"></label>
-                <input type="radio" id="e-star1" name="edit-rating" value="1" /><label class="full" for="e-star1"></label>
-                <input type="radio" id="e-starhalf" name="edit-rating" value="0.5" /><label class="half" for="e-starhalf"></label>
+                <input type="radio" id="e-star5" name="edit-rating" value="5" /><label class="full"
+                    for="e-star5"></label>
+                <input type="radio" id="e-star4half" name="edit-rating" value="4.5" /><label class="half"
+                    for="e-star4half"></label>
+                <input type="radio" id="e-star4" name="edit-rating" value="4" /><label class="full"
+                    for="e-star4"></label>
+                <input type="radio" id="e-star3half" name="edit-rating" value="3.5" /><label class="half"
+                    for="e-star3half"></label>
+                <input type="radio" id="e-star3" name="edit-rating" value="3" /><label class="full"
+                    for="e-star3"></label>
+                <input type="radio" id="e-star2half" name="edit-rating" value="2.5" /><label class="half"
+                    for="e-star2half"></label>
+                <input type="radio" id="e-star2" name="edit-rating" value="2" /><label class="full"
+                    for="e-star2"></label>
+                <input type="radio" id="e-star1half" name="edit-rating" value="1.5" /><label class="half"
+                    for="e-star1half"></label>
+                <input type="radio" id="e-star1" name="edit-rating" value="1" /><label class="full"
+                    for="e-star1"></label>
+                <input type="radio" id="e-starhalf" name="edit-rating" value="0.5" /><label class="half"
+                    for="e-starhalf"></label>
             </fieldset>
             <div style="margin-bottom: 1.5rem; text-align: left;">
-                <label style="color: #aaa; font-size: 0.85rem; display:block; margin-bottom:0.4rem; font-weight:bold;">Date Watched:</label>
-                <input type="date" id="edit-watch-date" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #444; background: #222; color: white; font-size: 1rem; font-family: inherit;">
+                <label
+                    style="color: #aaa; font-size: 0.85rem; display:block; margin-bottom:0.4rem; font-weight:bold;">Date
+                    Watched:</label>
+                <input type="date" id="edit-watch-date"
+                    style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #444; background: #222; color: white; font-size: 1rem; font-family: inherit;">
             </div>
-            <button class="photo-upload-btn" id="edit-trigger-photo-upload"><span style="font-size: 1.5rem;">📸</span> Change/Add Photo</button>
+            <button class="photo-upload-btn" id="edit-trigger-photo-upload"><span style="font-size: 1.5rem;">📸</span>
+                Change/Add Photo</button>
             <input type="file" id="edit-photo-upload-input" accept="image/*" style="display:none;">
             <div id="edit-photo-preview-container" class="photo-preview-box">
                 <button class="photo-remove-badge" id="edit-remove-photo-btn" title="Remove Photo">&times;</button>
                 <img id="edit-photo-preview-img" src="">
             </div>
-            <button class="btn btn-add" id="save-edit-btn" style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;">Save Changes</button>
+            <button class="btn btn-add" id="save-edit-btn"
+                style="width: 100%; font-size: 1rem; padding: 0.8rem; margin-top: 0.5rem;">Save Changes</button>
         </div>
     </div>
 
@@ -1024,7 +2098,7 @@
             <img id="memory-img" src="" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
         </div>
     </div>
-    
+
     <!-- Enlarge QR Modal -->
     <div id="qr-enlarge-modal" class="modal-backdrop">
         <div class="modal-content" style="padding: 1rem; text-align: center; max-width: 400px; background: white;">
@@ -1037,9 +2111,11 @@
     <!-- Friend Profile Modal -->
     <div id="friend-profile-modal" class="modal-backdrop">
         <div class="modal-content" style="max-width:520px; padding:0;">
-            <button class="modal-close" onclick="closeModal('friend-profile-modal')" style="top:12px; right:12px;">&times;</button>
+            <button class="modal-close" onclick="closeModal('friend-profile-modal')"
+                style="top:12px; right:12px;">&times;</button>
             <div class="friend-modal-header">
-                <img id="friend-modal-avatar" class="friend-modal-avatar" src="" alt="avatar" onerror="this.style.display='none'">
+                <img id="friend-modal-avatar" class="friend-modal-avatar" src="" alt="avatar"
+                    onerror="this.style.display='none'">
                 <div>
                     <div class="friend-modal-name" id="friend-modal-name">Friend</div>
                     <div class="friend-modal-subtitle" id="friend-modal-subtitle">Movie Diary</div>
@@ -1084,23 +2160,23 @@
         let diary = [];
         let myTickets = [];
         let myPlans = [];
-        let allFriendsTickets = []; 
-        
+        let allFriendsTickets = [];
+
         let tokenClient;
         let accessToken = null;
         let currentViewDate = new Date();
         let searchTimeout;
-        
+
         let pendingRatingMovie = null;
         let pendingUserPhotoBase64 = null;
         let editingMovieId = null;
         let editingPhotoBase64 = null;
         let editingPlanId = null;
-        
-        let currentViewedMovie = null; 
-        let currentPlanTicketId = null; 
+
+        let currentViewedMovie = null;
+        let currentPlanTicketId = null;
         let cropperInstance = null;
-        let globalAutoCroppedQR = null; // Store auto-detected QR
+        let globalAutoCroppedQR = null;
 
         let pendingTokenResolve = null;
         let pendingTokenReject = null;
@@ -1108,7 +2184,7 @@
         // ── Firebase state ──
         let currentUser = null;
         let friends = [];
-        let friendDiaryCache = {}; 
+        let friendDiaryCache = {};
         let syncDebounceTimer = null;
         let firebaseReady = false;
 
@@ -1138,7 +2214,7 @@
             } catch (err) {
                 console.warn('Firebase not configured yet. Running in local-only mode.', err);
                 firebaseReady = false;
-                renderFriendsTab(); 
+                renderFriendsTab();
             }
         }
 
@@ -1179,8 +2255,8 @@
                 avatarEl.style.display = 'block';
                 syncInd.style.display = 'flex';
                 avatarEl.src = user.photoURL || '';
-                
-                if(profileAcct) {
+
+                if (profileAcct) {
                     profileAcct.style.display = 'flex';
                     document.getElementById('profile-drawer-avatar').src = user.photoURL || '';
                     document.getElementById('profile-drawer-name').textContent = user.displayName || 'Movie Fan';
@@ -1190,7 +2266,7 @@
                 signinBtn.style.display = 'block';
                 avatarEl.style.display = 'none';
                 syncInd.style.display = 'none';
-                if(profileAcct) profileAcct.style.display = 'none';
+                if (profileAcct) profileAcct.style.display = 'none';
             }
         }
 
@@ -1229,7 +2305,7 @@
                 const updates = { displayName: user.displayName || snap.data().displayName, photoURL: user.photoURL || snap.data().photoURL };
                 await userRef.update(updates);
                 const code = snap.data().friendCode;
-                if (code) await db.collection('friendCodes').doc(code).update(updates).catch(() => {});
+                if (code) await db.collection('friendCodes').doc(code).update(updates).catch(() => { });
             }
         }
 
@@ -1247,9 +2323,9 @@
                     const data = userSnap.data();
                     if (Array.isArray(data.watchlist) && data.watchlist.length > 0) watchlist = data.watchlist;
                     else if (watchlist.length > 0) await userRef.update({ watchlist });
-                    
+
                     if (Array.isArray(data.tickets) && data.tickets.length > 0) myTickets = data.tickets;
-                    
+
                     const codeEl = document.getElementById('my-friend-code');
                     if (codeEl && data.friendCode) codeEl.textContent = data.friendCode;
                 }
@@ -1283,10 +2359,10 @@
                 } catch (err) { setSyncStatus('error'); }
             }, 800);
         }
-        
+
         async function syncTicketsToFirestore() {
             if (!currentUser || !firebaseReady) return;
-            try { await db.collection('users').doc(currentUser.uid).update({ tickets: myTickets }); } 
+            try { await db.collection('users').doc(currentUser.uid).update({ tickets: myTickets }); }
             catch (err) { console.error('Ticket sync error:', err); }
         }
 
@@ -1301,7 +2377,7 @@
 
         async function deleteDiaryEntryFromFirestore(id) {
             if (!currentUser || !firebaseReady) return;
-            try { await db.collection('users').doc(currentUser.uid).collection('diary').doc(String(id)).delete(); } 
+            try { await db.collection('users').doc(currentUser.uid).collection('diary').doc(String(id)).delete(); }
             catch (err) { console.error('Diary delete error:', err); }
         }
 
@@ -1346,7 +2422,7 @@
                 await db.collection('users').doc(currentUser.uid).collection('friends').doc(uid).delete();
                 friends = friends.filter(x => x.uid !== uid);
                 renderFriendsTab();
-                await loadPlans(); 
+                await loadPlans();
                 showToast(`Removed ${f ? f.displayName : 'friend'}.`);
             } catch (err) { showToast('Error removing friend.', true); }
         }
@@ -1383,7 +2459,7 @@
             db.collection('users').doc(currentUser.uid).get().then(snap => {
                 const el = document.getElementById('my-friend-code');
                 if (el && snap.exists) el.textContent = snap.data().friendCode || '—';
-            }).catch(() => {});
+            }).catch(() => { });
 
             const list = document.getElementById('friends-list');
             if (friends.length === 0) {
@@ -1518,13 +2594,13 @@
                 clearTimeout(timeoutId);
                 const q = e.target.value;
                 const ac = document.getElementById(autocompleteId);
-                if(q.length < 3) { ac.style.display = 'none'; return; }
-                
+                if (q.length < 3) { ac.style.display = 'none'; return; }
+
                 timeoutId = setTimeout(async () => {
                     try {
                         const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`);
                         const data = await res.json();
-                        if(data.length > 0) {
+                        if (data.length > 0) {
                             ac.innerHTML = data.map(d => {
                                 const name = d.display_name.split(',')[0];
                                 return `
@@ -1535,44 +2611,44 @@
                                 `}).join('');
                             ac.style.display = 'block';
                         } else { ac.style.display = 'none'; }
-                    } catch(err) {}
+                    } catch (err) { }
                 }, 600);
             });
             document.addEventListener('click', (e) => {
-                if(e.target.id !== inputId) {
+                if (e.target.id !== inputId) {
                     const ac = document.getElementById(autocompleteId);
-                    if(ac) ac.style.display = 'none';
+                    if (ac) ac.style.display = 'none';
                 }
             });
         }
 
         setupAutocomplete('plan-location', 'theater-autocomplete');
         setupAutocomplete('ticket-theater', 'ticket-theater-autocomplete');
-        
+
         function formatTimeAMPM(time24) {
             if (!time24) return '';
             let [hours, minutes] = time24.split(':');
-            if(!hours || !minutes) return time24;
+            if (!hours || !minutes) return time24;
             hours = parseInt(hours, 10);
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12; hours = hours ? hours : 12; 
+            hours = hours % 12; hours = hours ? hours : 12;
             return `${hours}:${minutes} ${ampm}`;
         }
-        
-        window.enlargeQR = function(src) {
+
+        window.enlargeQR = function (src) {
             document.getElementById('qr-enlarge-img').src = src;
             openModal('qr-enlarge-modal');
         }
-        
+
         // ── Gemini Integration (Structured JSON output) ──
         async function analyzeTicketWithGemini(base64Image) {
-            const apiKey = ""; 
+            const apiKey = "";
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
+
             const [header, b64Data] = base64Image.split(',');
             const mimeType = header.split(';')[0].split(':')[1];
             const currentYear = new Date().getFullYear();
-            
+
             const payload = {
                 contents: [{
                     role: "user",
@@ -1589,7 +2665,7 @@
                             theater: { type: "STRING", description: "Theater or Cinema name" },
                             date: { type: "STRING", description: "Convert to exact YYYY-MM-DD format based on the text. Example: If text is 'MAR 19' and year is 2026, output '2026-03-19'" },
                             time: { type: "STRING", description: "Convert to 24-hour HH:MM format. Example: '2:00 PM' becomes '14:00'" },
-                            seats: { type: "STRING", description: "Seat numbers (e.g., 'F-5, F-6' or '18')" }
+                            seats: { type: "STRING", description: "Look specifically for Seat numbers, Rows, or Auditoriums. Examples: 'F-5, F-6', 'Row G Seats 12-13', or 'Auditorium 1, F5'. If not found, return empty." }
                         },
                         required: ["theater", "date", "time", "seats"]
                     }
@@ -1614,60 +2690,61 @@
                 }
             }
         }
-        
-        window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
+
+        window.openTicketModal = function (mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
             if (mId) currentViewedMovie = { id: mId, title: mTitle, posterPath: mPoster };
             else if (!currentViewedMovie) return showToast("No movie selected!", true);
 
-            if(!currentUser) return showToast("Sign in to save digital tickets!", true);
-            
-            document.getElementById('ticket-upload-input').value = ''; 
+            if (!currentUser) return showToast("Sign in to save digital tickets!", true);
+
+            document.getElementById('ticket-upload-input').value = '';
             document.getElementById('ticket-theater').value = th || '';
             document.getElementById('ticket-date').value = dt || new Date().toISOString().split('T')[0];
             document.getElementById('ticket-time').value = tm || '19:00';
             document.getElementById('ticket-seats').value = '';
-            
+
             document.getElementById('trigger-ticket-upload').style.display = 'flex';
             document.getElementById('cropper-container').style.display = 'none';
             document.getElementById('ticket-details-form').style.display = 'none';
-            
-            currentPlanTicketId = planId; 
-            globalAutoCroppedQR = null;
-            
-            if(cropperInstance) cropperInstance.destroy();
+            document.getElementById('qr-preview-container').style.display = 'none';
+
+            currentPlanTicketId = planId;
+            window.globalAutoCroppedQR = null;
+
+            if (cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
             document.getElementById('ticket-cropper-img').src = '';
-            
+
             closeModal('movie-modal');
             openModal('ticket-builder-modal');
         }
-        
-        window.openTicketModalFromPlan = function(planId) {
+
+        window.openTicketModalFromPlan = function (planId) {
             const plan = myPlans.find(p => p.id === planId);
-            if(!plan) return;
+            if (!plan) return;
             openTicketModal(plan.movieId, plan.title, plan.posterPath, plan.location, plan.date, plan.time, plan.id);
         }
-        
+
         // ── Auto QR/Aztec Detection + Fallbacks ──
-        document.getElementById('ticket-upload-input').addEventListener('change', function(e) {
+        document.getElementById('ticket-upload-input').addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             document.getElementById('trigger-ticket-upload').style.display = 'none';
             const saveBtn = document.getElementById('save-ticket-btn');
             const origText = saveBtn.innerText;
             saveBtn.innerText = "✨ AI analyzing ticket...";
             saveBtn.disabled = true;
             document.getElementById('ticket-details-form').style.display = 'block';
-            globalAutoCroppedQR = null;
-            
+            window.globalAutoCroppedQR = null;
+
             const reader = new FileReader();
             reader.onload = function (ev) {
                 const imgSource = new Image();
-                imgSource.onload = async function() {
-                    
+                imgSource.onload = async function () {
                     let barcodeFound = false;
-                    
+                    document.getElementById('qr-preview-container').style.display = 'none';
+
                     // 1. Try Native BarcodeDetector (Very fast, excellent Aztec support)
                     try {
                         if ('BarcodeDetector' in window) {
@@ -1675,18 +2752,21 @@
                             const barcodes = await detector.detect(imgSource);
                             if (barcodes.length > 0) {
                                 const { x, y, width, height } = barcodes[0].boundingBox;
-                                const pad = 20; 
+                                const pad = 20;
                                 const cropCanvas = document.createElement('canvas');
                                 cropCanvas.width = width + (pad * 2);
                                 cropCanvas.height = height + (pad * 2);
                                 const ctx = cropCanvas.getContext('2d');
                                 ctx.drawImage(imgSource, x - pad, y - pad, width + (pad * 2), height + (pad * 2), 0, 0, cropCanvas.width, cropCanvas.height);
-                                globalAutoCroppedQR = cropCanvas.toDataURL('image/jpeg', 0.9);
+                                
+                                window.globalAutoCroppedQR = cropCanvas.toDataURL('image/jpeg', 0.9);
+                                document.getElementById('qr-preview-img').src = window.globalAutoCroppedQR;
+                                document.getElementById('qr-preview-container').style.display = 'block';
                                 barcodeFound = true;
                             }
                         }
-                    } catch(e) { console.warn("Native barcode detection unavailable.", e); }
-                    
+                    } catch (e) { console.warn("Native barcode detection unavailable.", e); }
+
                     // 2. Try ZXing Browser Fallback
                     if (!barcodeFound && window.ZXing) {
                         try {
@@ -1695,19 +2775,22 @@
                             if (result && result.resultPoints) {
                                 let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
                                 result.resultPoints.forEach(p => {
-                                    if(p.x < minX) minX = p.x; if(p.y < minY) minY = p.y;
-                                    if(p.x > maxX) maxX = p.x; if(p.y > maxY) maxY = p.y;
+                                    if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y;
+                                    if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y;
                                 });
                                 const width = maxX - minX; const height = maxY - minY;
-                                const pad = Math.max(20, width * 0.2); 
+                                const pad = Math.max(20, width * 0.2);
                                 const cropCanvas = document.createElement('canvas');
                                 cropCanvas.width = width + (pad * 2); cropCanvas.height = height + (pad * 2);
                                 const ctx = cropCanvas.getContext('2d');
                                 ctx.drawImage(imgSource, minX - pad, minY - pad, width + (pad * 2), height + (pad * 2), 0, 0, cropCanvas.width, cropCanvas.height);
-                                globalAutoCroppedQR = cropCanvas.toDataURL('image/jpeg', 0.9);
+                                
+                                window.globalAutoCroppedQR = cropCanvas.toDataURL('image/jpeg', 0.9);
+                                document.getElementById('qr-preview-img').src = window.globalAutoCroppedQR;
+                                document.getElementById('qr-preview-container').style.display = 'block';
                                 barcodeFound = true;
                             }
-                        } catch(e) { console.warn("ZXing fallback failed.", e); }
+                        } catch (e) { console.warn("ZXing fallback failed.", e); }
                     }
 
                     // 3. Fallback to Manual Cropper if auto-detect fails entirely
@@ -1717,8 +2800,8 @@
                         img.src = ev.target.result;
                         img.style.display = 'block';
                         img.style.maxWidth = '100%';
-                        
-                        if(cropperInstance) cropperInstance.destroy();
+
+                        if (cropperInstance) cropperInstance.destroy();
                         cropperInstance = new Cropper(img, {
                             aspectRatio: 1, viewMode: 1, dragMode: 'move', autoCropArea: 0.6, background: false
                         });
@@ -1730,13 +2813,13 @@
 
                     // 4. Send the FULL image to Gemini to extract Text Data
                     let w = imgSource.width, h = imgSource.height;
-                    const MAX = 1200; 
+                    const MAX = 1200;
                     if (w > h && w > MAX) { h *= MAX / w; w = MAX; } else if (h > MAX) { w *= MAX / h; h = MAX; }
                     const gCanvas = document.createElement('canvas');
                     gCanvas.width = w; gCanvas.height = h;
                     gCanvas.getContext('2d').drawImage(imgSource, 0, 0, w, h);
                     const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
-                    
+
                     try {
                         const data = await analyzeTicketWithGemini(base64ForGemini);
                         if (data) {
@@ -1746,7 +2829,7 @@
                             if (data.seats) document.getElementById('ticket-seats').value = data.seats;
                             showToast('✨ Ticket details extracted!');
                         }
-                    } catch(err) {
+                    } catch (err) {
                         showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
@@ -1757,55 +2840,55 @@
             };
             reader.readAsDataURL(file);
         });
-        
+
         document.getElementById('save-ticket-btn').addEventListener('click', async () => {
             let qrBase64;
-            if (globalAutoCroppedQR) {
-                qrBase64 = globalAutoCroppedQR;
+            if (window.globalAutoCroppedQR) {
+                qrBase64 = window.globalAutoCroppedQR;
             } else if (cropperInstance) {
-                qrBase64 = cropperInstance.getCroppedCanvas({width: 300, height: 300}).toDataURL('image/jpeg', 0.8);
+                qrBase64 = cropperInstance.getCroppedCanvas({ width: 300, height: 300 }).toDataURL('image/jpeg', 0.8);
             } else {
                 return showToast('Please select a screenshot first.', true);
             }
-            
+
             const theater = document.getElementById('ticket-theater').value.trim() || 'Unknown Theater';
             const date = document.getElementById('ticket-date').value;
             const time = document.getElementById('ticket-time').value;
             const seats = document.getElementById('ticket-seats').value.trim();
-            
+
             const newTicket = {
                 id: crypto.randomUUID(), movieId: currentViewedMovie.id, title: currentViewedMovie.title,
-                posterPath: currentViewedMovie.posterPath, planId: currentPlanTicketId || null, 
+                posterPath: currentViewedMovie.posterPath, planId: currentPlanTicketId || null,
                 theater, date, time, seats, qr: qrBase64, createdAt: new Date().toISOString()
             };
-            
+
             myTickets.push(newTicket);
             closeModal('ticket-builder-modal');
             showToast('Digital Ticket Saved! 🎟️');
-            
+
             syncTicketsToFirestore();
             renderPlansAndTickets();
         });
 
-        window.deleteTicket = function(ticketId) {
-            if(confirm("Are you sure you want to delete this ticket?")) {
+        window.deleteTicket = function (ticketId) {
+            if (confirm("Are you sure you want to delete this ticket?")) {
                 myTickets = myTickets.filter(t => String(t.id) !== String(ticketId));
                 syncTicketsToFirestore();
                 renderPlansAndTickets();
                 showToast('Ticket deleted.');
             }
         }
-        
-        window.openPlanModal = function(planIdToEdit = null) {
-            if(!currentUser) return showToast("Sign in to plan a movie night!", true);
-            
+
+        window.openPlanModal = function (planIdToEdit = null) {
+            if (!currentUser) return showToast("Sign in to plan a movie night!", true);
+
             document.getElementById('theater-autocomplete').style.display = 'none';
             const friendsListDiv = document.getElementById('plan-friends-list');
-            
+
             if (planIdToEdit) {
                 const plan = myPlans.find(p => p.id === planIdToEdit);
-                if(!plan || plan.hostUid !== currentUser.uid) return;
-                
+                if (!plan || plan.hostUid !== currentUser.uid) return;
+
                 editingPlanId = plan.id;
                 currentViewedMovie = { id: plan.movieId, title: plan.title, posterPath: plan.posterPath };
                 document.getElementById('plan-modal-title').innerText = 'Edit Plan';
@@ -1813,8 +2896,8 @@
                 document.getElementById('plan-date').value = plan.date;
                 document.getElementById('plan-time').value = plan.time;
                 document.getElementById('save-plan-btn').innerText = 'Update Plan';
-                
-                if(friends.length === 0) friendsListDiv.innerHTML = '<div style="color:#aaa; font-size:0.85rem;">You need to add friends first!</div>';
+
+                if (friends.length === 0) friendsListDiv.innerHTML = '<div style="color:#aaa; font-size:0.85rem;">You need to add friends first!</div>';
                 else friendsListDiv.innerHTML = friends.map(f => `
                         <label style="display:flex; align-items:center; gap:8px; margin-bottom: 6px; color:#fff;">
                             <input type="checkbox" value="${f.uid}" class="friend-invite-cb" ${plan.invitees.includes(f.uid) ? 'checked' : ''}>
@@ -1822,16 +2905,16 @@
                             ${escHtml(f.displayName)}
                         </label>`).join('');
             } else {
-                if(!currentViewedMovie) return showToast("No movie selected!", true);
-                
+                if (!currentViewedMovie) return showToast("No movie selected!", true);
+
                 editingPlanId = null;
                 document.getElementById('plan-modal-title').innerText = 'Plan a Watch';
                 document.getElementById('plan-location').value = '';
                 document.getElementById('plan-date').value = new Date().toISOString().split('T')[0];
                 document.getElementById('plan-time').value = '19:00';
                 document.getElementById('save-plan-btn').innerText = 'Send Invites';
-                
-                if(friends.length === 0) friendsListDiv.innerHTML = '<div style="color:#aaa; font-size:0.85rem;">You need to add friends first to invite them!</div>';
+
+                if (friends.length === 0) friendsListDiv.innerHTML = '<div style="color:#aaa; font-size:0.85rem;">You need to add friends first to invite them!</div>';
                 else friendsListDiv.innerHTML = friends.map(f => `
                         <label style="display:flex; align-items:center; gap:8px; margin-bottom: 6px; color:#fff;">
                             <input type="checkbox" value="${f.uid}" class="friend-invite-cb">
@@ -1842,35 +2925,35 @@
             closeModal('movie-modal');
             openModal('plan-modal');
         }
-        
-        window.savePlan = async function() {
-            if(!currentUser) return;
+
+        window.savePlan = async function () {
+            if (!currentUser) return;
             const location = document.getElementById('plan-location').value.trim() || 'TBD';
             const date = document.getElementById('plan-date').value || '';
             const time = document.getElementById('plan-time').value || '';
             const invitees = Array.from(document.querySelectorAll('.friend-invite-cb:checked')).map(cb => cb.value);
-            
+
             try {
                 const userRef = db.collection('users').doc(currentUser.uid);
                 const userSnap = await userRef.get();
                 let existingPlans = (userSnap.exists && userSnap.data().plans) ? userSnap.data().plans : [];
-                
+
                 if (editingPlanId) {
                     const pIndex = existingPlans.findIndex(p => p.id === editingPlanId);
-                    if(pIndex > -1) { existingPlans[pIndex] = { ...existingPlans[pIndex], location, date, time, invitees }; showToast('Plan updated! 🍿'); }
+                    if (pIndex > -1) { existingPlans[pIndex] = { ...existingPlans[pIndex], location, date, time, invitees }; showToast('Plan updated! 🍿'); }
                 } else {
                     existingPlans.push({ id: crypto.randomUUID() || Date.now().toString(), movieId: currentViewedMovie?.id || '', title: currentViewedMovie?.title || 'Unknown', posterPath: currentViewedMovie?.posterPath || '', location, date, time, hostUid: currentUser.uid || '', hostName: currentUser.displayName || 'Movie Fan', hostAvatar: currentUser.photoURL || '', invitees: invitees || [], createdAt: new Date().toISOString() });
                     showToast('Invites sent! 🍿');
                 }
                 await userRef.update({ plans: existingPlans });
                 closeModal('plan-modal');
-                await loadPlans(); 
+                await loadPlans();
             } catch (err) { showToast('Error: ' + err.message, true); }
         }
-        
-        window.deletePlan = async function(planId) {
-            if(!currentUser) return;
-            if(confirm("Are you sure you want to cancel and delete this movie plan?")) {
+
+        window.deletePlan = async function (planId) {
+            if (!currentUser) return;
+            if (confirm("Are you sure you want to cancel and delete this movie plan?")) {
                 try {
                     const userRef = db.collection('users').doc(currentUser.uid);
                     const userSnap = await userRef.get();
@@ -1879,7 +2962,7 @@
                     await userRef.update({ plans: existingPlans });
                     showToast('Plan canceled.');
                     await loadPlans();
-                } catch(err) { showToast('Error deleting plan.', true); }
+                } catch (err) { showToast('Error deleting plan.', true); }
             }
         }
 
@@ -1898,46 +2981,48 @@
                 showToast('Ticket attached to plan! 🎟️');
             }
         }
-        
+
         async function loadPlans() {
             if (!currentUser || !firebaseReady) return;
             try {
                 let loadedPlans = [];
-                allFriendsTickets = []; 
+                allFriendsTickets = [];
                 const mySnap = await db.collection('users').doc(currentUser.uid).get();
                 if (mySnap.exists && mySnap.data().plans) loadedPlans.push(...mySnap.data().plans);
-                
+
                 for (const friend of friends) {
                     try {
                         const fSnap = await db.collection('users').doc(friend.uid).get();
                         if (fSnap.exists) {
                             const fdata = fSnap.data();
-                            if (fdata.plans) fdata.plans.forEach(plan => { if(plan.invitees && plan.invitees.includes(currentUser.uid)) loadedPlans.push(plan); });
-                            if (fdata.tickets) allFriendsTickets.push(...fdata.tickets.map(t => ({...t, addedBy: friend.displayName || 'Friend', addedByAvatar: friend.photoURL || PLACEHOLDER_IMG})));
+                            if (fdata.plans) fdata.plans.forEach(plan => { if (plan.invitees && plan.invitees.includes(currentUser.uid)) loadedPlans.push(plan); });
+                            if (fdata.tickets) allFriendsTickets.push(...fdata.tickets.map(t => ({ ...t, addedBy: friend.displayName || 'Friend', addedByAvatar: friend.photoURL || PLACEHOLDER_IMG })));
                         }
-                    } catch(e) {}
+                    } catch (e) { }
                 }
-                myPlans = loadedPlans.sort((a,b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time));
+                myPlans = loadedPlans.sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time));
                 renderPlansAndTickets();
-            } catch (err) {}
+            } catch (err) { }
         }
-        
+
         function renderPlansAndTickets() {
             const ticketsContainer = document.getElementById('tickets-container');
             const plansContainer = document.getElementById('plans-container');
-            if(!ticketsContainer || !plansContainer) return;
-            
-            if(!currentUser) {
+            if (!ticketsContainer || !plansContainer) return;
+
+            if (!currentUser) {
                 ticketsContainer.innerHTML = '<div style="color:#aaa; font-size: 0.9rem; text-align:center; padding: 2rem;">Sign in to view Tickets & Plans.</div>';
                 plansContainer.innerHTML = '';
                 return;
             }
-            
-            const myMappedTickets = myTickets.map(t => ({...t, addedBy: 'You', addedByAvatar: currentUser.photoURL || PLACEHOLDER_IMG}));
+
+            const myMappedTickets = myTickets.map(t => ({ ...t, addedBy: 'You', addedByAvatar: currentUser.photoURL || PLACEHOLDER_IMG }));
             const allTickets = [...myMappedTickets, ...allFriendsTickets];
-            const independentTickets = myMappedTickets.filter(t => !t.planId);
             
-            if(independentTickets.length === 0) ticketsContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No independent tickets saved. Find a movie and click "Save Ticket" to add one!</div>';
+            // Allow ALL tickets to stay in the main list, regardless of whether they have a planId
+            const independentTickets = myMappedTickets; 
+
+            if (independentTickets.length === 0) ticketsContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No tickets saved. Find a movie and click "Save Ticket" to add one!</div>';
             else {
                 ticketsContainer.innerHTML = independentTickets.map(t => {
                     const img = (t.posterPath && t.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${t.posterPath}` : PLACEHOLDER_IMG;
@@ -1960,22 +3045,22 @@
                     </div>`;
                 }).join('');
             }
-            
-            if(myPlans.length === 0) plansContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No upcoming plans. Click "Plan with Friends" on a movie to organize a watch!</div>';
+
+            if (myPlans.length === 0) plansContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No upcoming plans. Click "Plan with Friends" on a movie to organize a watch!</div>';
             else {
                 const now = new Date();
                 const upcomingPlans = myPlans.filter(p => new Date(p.date + 'T23:59:59') >= now);
-                
-                if(upcomingPlans.length === 0) plansContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">Only past plans exist. Time to schedule a new one!</div>';
+
+                if (upcomingPlans.length === 0) plansContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">Only past plans exist. Time to schedule a new one!</div>';
                 else {
                     plansContainer.innerHTML = upcomingPlans.map(p => {
                         const isHost = p.hostUid === currentUser.uid;
                         const badgeStr = isHost ? '<span class="badge" style="background:#444;">You are Hosting</span>' : `<span class="badge" style="background:var(--google-blue);">Invited by ${escHtml(p.hostName)}</span>`;
                         const img = (p.posterPath && p.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${p.posterPath}` : PLACEHOLDER_IMG;
-                        
+
                         const relatedTickets = allTickets.filter(t => String(t.planId) === String(p.id));
                         let ticketsHtml = '';
-                        if(relatedTickets.length > 0) {
+                        if (relatedTickets.length > 0) {
                             ticketsHtml = `<div class="plan-tickets-area">${relatedTickets.map(t => `
                                 <div class="mini-ticket">
                                     ${t.addedBy === 'You' ? `<button class="remove-btn" style="position:absolute; top:-5px; left:-5px; width:20px; height:20px; font-size:0.8rem; z-index:5;" onclick="deleteTicket('${t.id}')">×</button>` : ''}
@@ -2005,10 +3090,10 @@
                                 </div>
                             `;
                         }
-                        
+
                         const guestAvatars = p.invitees.map(uid => { const f = friends.find(x => x.uid === uid); return `<img src="${f ? f.photoURL : PLACEHOLDER_IMG}" class="plan-guest-avatar" title="${f ? f.displayName : 'Guest'}">`; }).join('');
                         const actionBtns = isHost ? `<div class="plan-actions"><button class="plan-action-btn" onclick="openPlanModal('${p.id}')">Edit</button><button class="plan-action-btn delete" onclick="deletePlan('${p.id}')">Delete</button></div>` : '';
-                        
+
                         return `
                         <div class="plan-card">
                             <div class="plan-header">${actionBtns}<img src="${img}" alt="${escHtml(p.title)}" style="cursor:pointer;" onclick="fetchMovieDetails('${p.movieId}')">
@@ -2019,7 +3104,7 @@
                             </div>
                             ${ticketsHtml}
                             <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; flex-direction: column; gap: 8px;">
-                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Scan New Ticket for Plan</button>
+                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Scan New Ticket</button>
                                 ${linkExistingHtml}
                             </div>
                         </div>`;
@@ -2037,7 +3122,7 @@
         }
 
         function saveData() {
-            try { localStorage.setItem('movieWatchlist', JSON.stringify(watchlist)); localStorage.setItem('movieDiary', JSON.stringify(diary)); } 
+            try { localStorage.setItem('movieWatchlist', JSON.stringify(watchlist)); localStorage.setItem('movieDiary', JSON.stringify(diary)); }
             catch (e) { showToast('Storage full! Remove some photos or movies.', true); }
         }
 
@@ -2075,7 +3160,7 @@
             } else { backdrop.classList.remove('show'); document.body.style.overflow = ''; }
         }
 
-        window.openProfileDrawer = function() { if (!drawer.classList.contains('open')) { toggleDrawer(); } switchDrawerTab('profile'); };
+        window.openProfileDrawer = function () { if (!drawer.classList.contains('open')) { toggleDrawer(); } switchDrawerTab('profile'); };
 
         document.getElementById('watchlist-toggle-btn').addEventListener('click', toggleDrawer);
         document.getElementById('close-watchlist-btn').addEventListener('click', toggleDrawer);
@@ -2086,7 +3171,7 @@
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             if (e && e.target) e.target.classList.add('active');
             else document.querySelectorAll('.tab-btn').forEach(btn => { if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tabName)) btn.classList.add('active'); });
-            
+
             document.getElementById(`tab-${tabName}`).classList.add('active');
             document.getElementById('drawer-footer-sync').style.display = (tabName === 'watchlist') ? 'block' : 'none';
             if (tabName === 'profile') { populateYearSelector(); renderStats(); }
@@ -2124,7 +3209,7 @@
             updateNavPickers();
             container.innerHTML = '<div class="loading">Loading movies...</div>';
             const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
-            const startStr = `${year}-${String(month+1).padStart(2,'0')}-01`, endStr = `${year}-${String(month+1).padStart(2,'0')}-${String(new Date(year,month+1,0).getDate()).padStart(2,'0')}`;
+            const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`, endStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
             try {
                 const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=US&sort_by=release_date.asc&release_date.gte=${startStr}&release_date.lte=${endStr}&with_release_type=3&popularity.gte=20`;
                 const response = await fetch(`${url}&page=1`); const data = await response.json(); let movies = data.results;
@@ -2141,7 +3226,7 @@
         const searchInput = document.getElementById('search-input'), clearBtn = document.getElementById('search-clear-btn');
         searchInput.addEventListener('input', e => {
             const q = e.target.value.trim(); clearTimeout(searchTimeout);
-            if (q.length > 0) { clearBtn.style.display = 'block'; document.getElementById('top-nav').style.display = 'none'; document.getElementById('bottom-nav').style.display = 'none'; searchTimeout = setTimeout(() => searchMovies(q), 500); } 
+            if (q.length > 0) { clearBtn.style.display = 'block'; document.getElementById('top-nav').style.display = 'none'; document.getElementById('bottom-nav').style.display = 'none'; searchTimeout = setTimeout(() => searchMovies(q), 500); }
             else clearSearch();
         });
         clearBtn.addEventListener('click', clearSearch);
@@ -2150,15 +3235,15 @@
 
         async function searchMovies(query) {
             const c = document.getElementById('movies-container'); c.innerHTML = '<div class="loading">Searching movies...</div>'; document.getElementById('rerelease-section').style.display = 'none';
-            try { const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(query)}&page=1&include_adult=false`; const data = await (await fetch(url)).json(); displayMovies(data.results.filter(m => m.poster_path), true); } 
+            try { const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(query)}&page=1&include_adult=false`; const data = await (await fetch(url)).json(); displayMovies(data.results.filter(m => m.poster_path), true); }
             catch { c.innerHTML = '<div class="loading">Error searching.</div>'; }
         }
 
-        function formatDateMDY(ds) { if (!ds) return ''; const [y, m, d] = ds.split('-'); return `${parseInt(m,10)}/${parseInt(d,10)}/${y}`; }
+        function formatDateMDY(ds) { if (!ds) return ''; const [y, m, d] = ds.split('-'); return `${parseInt(m, 10)}/${parseInt(d, 10)}/${y}`; }
 
         function displayMovies(movies, isSearch) {
             const c = document.getElementById('movies-container'); c.innerHTML = '';
-            if (!movies || movies.length === 0) return c.innerHTML = `<div class="loading">${isSearch?'No movies found.':'No major releases this month.'}</div>`;
+            if (!movies || movies.length === 0) return c.innerHTML = `<div class="loading">${isSearch ? 'No movies found.' : 'No major releases this month.'}</div>`;
             movies.forEach(movie => {
                 const safeTitle = movie.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const isLogged = diary.some(m => String(m.id) === String(movie.id)), inWL = watchlist.some(m => String(m.id) === String(movie.id));
@@ -2166,7 +3251,7 @@
                 if (isLogged) { btnText = '★ Logged'; btnDisabled = 'disabled'; } else if (inWL) { btnText = '✓ Added'; btnDisabled = 'disabled'; }
                 const imgUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : PLACEHOLDER_IMG;
                 const card = document.createElement('div'); card.className = 'movie-card';
-                card.innerHTML = `<img src="${imgUrl}" alt="${movie.title}" onerror="this.src='${PLACEHOLDER_IMG}'" onclick="fetchMovieDetails('${movie.id}')"><div style="flex-grow:1;display:flex;flex-direction:column;justify-content:flex-end;margin-top:0.5rem;min-width:0;"><h3 title="${movie.title}">${movie.title}</h3><p>${formatDateMDY(movie.release_date)||'TBD'}</p><div class="btn-group"><button id="add-btn-${movie.id}" class="btn btn-add" ${btnDisabled} onclick="addToWatchlist('${movie.id}','${safeTitle}','${movie.release_date||''}','${movie.poster_path}')">${btnText}</button><button class="btn btn-watched" title="Log in Diary" onclick="promptRating('${movie.id}','${safeTitle}','${movie.release_date}','${movie.poster_path}')">👁</button></div></div>`;
+                card.innerHTML = `<img src="${imgUrl}" alt="${movie.title}" onerror="this.src='${PLACEHOLDER_IMG}'" onclick="fetchMovieDetails('${movie.id}')"><div style="flex-grow:1;display:flex;flex-direction:column;justify-content:flex-end;margin-top:0.5rem;min-width:0;"><h3 title="${movie.title}">${movie.title}</h3><p>${formatDateMDY(movie.release_date) || 'TBD'}</p><div class="btn-group"><button id="add-btn-${movie.id}" class="btn btn-add" ${btnDisabled} onclick="addToWatchlist('${movie.id}','${safeTitle}','${movie.release_date || ''}','${movie.poster_path}')">${btnText}</button><button class="btn btn-watched" title="Log in Diary" onclick="promptRating('${movie.id}','${safeTitle}','${movie.release_date}','${movie.poster_path}')">👁</button></div></div>`;
                 c.appendChild(card);
             });
         }
@@ -2174,20 +3259,20 @@
         ['prev-month-btn', 'prev-month-btn-bottom'].forEach(id => { document.getElementById(id).addEventListener('click', () => { currentViewDate.setMonth(currentViewDate.getMonth() - 1); fetchMoviesForCurrentMonth(); fetchRereleases(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
         ['next-month-btn', 'next-month-btn-bottom'].forEach(id => { document.getElementById(id).addEventListener('click', () => { currentViewDate.setMonth(currentViewDate.getMonth() + 1); fetchMoviesForCurrentMonth(); fetchRereleases(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); });
 
-        window.fetchMovieDetails = async function(id) {
+        window.fetchMovieDetails = async function (id) {
             if (!id) return;
             try {
                 const movie = await (await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API_KEY}&append_to_response=credits`)).json();
                 const imgUrl = movie.poster_path ? `https://image.tmdb.org/t/p/w200${movie.poster_path}` : PLACEHOLDER_IMG;
                 currentViewedMovie = { id: movie.id, title: movie.title, posterPath: movie.poster_path };
-                
+
                 document.getElementById('modal-poster').src = imgUrl; document.getElementById('modal-title').innerText = movie.title;
                 document.getElementById('modal-date').innerText = movie.release_date ? movie.release_date.split('-')[0] : 'TBD';
                 document.getElementById('modal-rating').innerText = movie.vote_average ? movie.vote_average.toFixed(1) : 'NR';
                 document.getElementById('modal-genres').innerText = movie.genres.map(g => g.name).join(', '); document.getElementById('modal-overview').innerText = movie.overview || 'No overview available.';
                 document.getElementById('modal-cast').innerText = movie.credits?.cast?.slice(0, 5).map(c => c.name).join(', ') || 'No cast data.';
-                document.getElementById('modal-showtimes-btn').onclick = () => window.open(`https://www.google.com/search?q=${encodeURIComponent(movie.title+' movie showtimes near me')}`, '_blank');
-                
+                document.getElementById('modal-showtimes-btn').onclick = () => window.open(`https://www.google.com/search?q=${encodeURIComponent(movie.title + ' movie showtimes near me')}`, '_blank');
+
                 openModal('movie-modal');
             } catch { showToast('Error loading details', true); }
         }
@@ -2198,7 +3283,7 @@
         async function fetchRereleases() {
             try {
                 const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
-                const startStr = `${year}-${String(month+1).padStart(2,'0')}-01`, endStr = `${year}-${String(month+1).padStart(2,'0')}-${String(new Date(year,month+1,0).getDate()).padStart(2,'0')}`;
+                const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`, endStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
                 const olderDate = new Date(); olderDate.setFullYear(olderDate.getFullYear() - 3);
                 const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=US&with_release_type=2|3|4&release_date.gte=${startStr}&release_date.lte=${endStr}&primary_release_date.lte=${olderDate.toISOString().split('T')[0]}&sort_by=popularity.desc`;
                 const data = await (await fetch(url)).json(); const rereleases = data.results.filter(m => m.poster_path).slice(0, 10);
@@ -2212,9 +3297,9 @@
                             const us = rdData.results?.find(r => r.iso_3166_1 === 'US');
                             if (us) {
                                 const sp = us.release_dates.find(rd => { const d = new Date(rd.release_date), s = new Date(startStr), e = new Date(endStr); return d >= s && d <= e && [2, 3, 4].includes(rd.type); });
-                                if (sp) { const dd = new Date(sp.release_date); displayDate = `${dd.getMonth()+1}/${dd.getDate()}/${dd.getFullYear()}`; isoDate = sp.release_date.split('T')[0]; }
+                                if (sp) { const dd = new Date(sp.release_date); displayDate = `${dd.getMonth() + 1}/${dd.getDate()}/${dd.getFullYear()}`; isoDate = sp.release_date.split('T')[0]; }
                             }
-                        } catch {}
+                        } catch { }
                         const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         const inWL = watchlist.some(w => String(w.id) === String(m.id)), isLogged = diary.some(d => String(d.id) === String(m.id));
                         let btnText = '+Add', btnDisabled = '';
@@ -2263,7 +3348,7 @@
                     const img = (movie.posterPath && movie.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${movie.posterPath}` : PLACEHOLDER_IMG;
                     const syncStr = movie.synced ? '<span style="color:#34A853;font-size:0.8rem;display:block;">✓ Synced</span>' : '';
                     const li = document.createElement('li'); li.className = 'list-item';
-                    li.innerHTML = `<img src="${img}" alt="poster"><div class="list-item-info"><strong>${movie.title}</strong><small>${formatDateMDY(movie.releaseDate)||'TBD'}</small>${syncStr}</div><button class="btn btn-watched" title="Log in Diary" style="margin-right:5px;flex:0;padding:0.3rem 0.6rem;" onclick="promptRating('${movie.id}','${movie.title.replace(/'/g,"\\'")}','${movie.releaseDate}','${movie.posterPath}',true)">👁</button><button class="remove-btn" onclick="removeFromWatchlist('${movie.id}')">×</button>`;
+                    li.innerHTML = `<img src="${img}" alt="poster"><div class="list-item-info"><strong>${movie.title}</strong><small>${formatDateMDY(movie.releaseDate) || 'TBD'}</small>${syncStr}</div><button class="btn btn-watched" title="Log in Diary" style="margin-right:5px;flex:0;padding:0.3rem 0.6rem;" onclick="promptRating('${movie.id}','${movie.title.replace(/'/g, "\\'")}','${movie.releaseDate}','${movie.posterPath}',true)">👁</button><button class="remove-btn" onclick="removeFromWatchlist('${movie.id}')">×</button>`;
                     wlC.appendChild(li);
                 });
             }
@@ -2383,12 +3468,12 @@
                 for (let i = 1; i < rows.length; i++) {
                     if (rows[i].length < 2) continue; const title = rows[i][nI]; if (!title) continue;
                     const yearStr = yI !== -1 ? rows[i][yI] : '', ratingStr = rI !== -1 ? rows[i][rI] : '0'; const rating5 = Math.round(parseFloat(ratingStr || 0) * 2) / 2; const dateStr = dI !== -1 && rows[i][dI] ? rows[i][dI] : new Date().toISOString().split('T')[0];
-                    importBtn.innerText = `Importing... (${i}/${rows.length-1})`;
+                    importBtn.innerText = `Importing... (${i}/${rows.length - 1})`;
                     try {
                         let url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}&page=1&include_adult=false`; if (yearStr) url += `&primary_release_year=${yearStr}`;
                         const data = await (await fetch(url)).json(); const m = data.results?.[0] || null; const realId = m ? m.id : ('lb_' + Math.random().toString(36).substr(2, 9));
                         if (!diary.some(d => String(d.id) === String(realId))) { const entry = { id: realId, title, releaseDate: m?.release_date || null, posterPath: m?.poster_path || null, rating: rating5, watchedDate: dateStr, userPhoto: null }; diary.push(entry); importCount++; saveDiaryEntryToFirestore(entry); }
-                    } catch (err) {} await new Promise(r => setTimeout(r, 250));
+                    } catch (err) { } await new Promise(r => setTimeout(r, 250));
                 }
                 saveData(); syncWatchlistToFirestore(); updateListsUI(); populateYearSelector(); renderStats(); fetchMoviesForCurrentMonth(); showToast(`Imported ${importCount} movies!`); importBtn.innerText = 'Choose diary.csv'; e.target.value = '';
             }; reader.readAsText(file);
@@ -2416,7 +3501,7 @@
             yd.forEach(m => { const dp = m.watchedDate.split('T')[0]; const [y2, m2, d2] = dp.split('-'); const do2 = new Date(y2, parseInt(m2) - 1, d2); if (!isNaN(do2)) { const dw = do2.getDay(); dCounts[dw] = (dCounts[dw] || 0) + 1; } });
             if (Object.keys(dCounts).length > 0) { const bd = Object.keys(dCounts).reduce((a, b) => dCounts[a] > dCounts[b] ? a : b); document.getElementById('recap-day').innerText = days[bd]; } else document.getElementById('recap-day').innerText = 'N/A';
             const mem = yd.filter(m => m.userPhoto), memC = document.getElementById('recap-memories-container'), memT = document.getElementById('recap-memories-track');
-            if (mem.length > 0) { memC.style.display = 'block'; document.getElementById('memories-year-label').innerText = year; memT.innerHTML = ''; const rots = [-3, 2, -2, 3, -1, 4]; mem.forEach((m, i) => { const c = document.createElement('div'); c.className = 'polaroid'; c.style.transform = `rotate(${rots[i%rots.length]}deg)`; c.onclick = () => viewUserMemory(m.id); c.innerHTML = `<img src="${m.userPhoto}" alt="Memory"><div class="polaroid-caption">${m.title}</div>`; memT.appendChild(c); }); } else { memC.style.display = 'none'; }
+            if (mem.length > 0) { memC.style.display = 'block'; document.getElementById('memories-year-label').innerText = year; memT.innerHTML = ''; const rots = [-3, 2, -2, 3, -1, 4]; mem.forEach((m, i) => { const c = document.createElement('div'); c.className = 'polaroid'; c.style.transform = `rotate(${rots[i % rots.length]}deg)`; c.onclick = () => viewUserMemory(m.id); c.innerHTML = `<img src="${m.userPhoto}" alt="Memory"><div class="polaroid-caption">${m.title}</div>`; memT.appendChild(c); }); } else { memC.style.display = 'none'; }
         }
 
         // Image Sharing
@@ -2475,8 +3560,8 @@
             const syncBtn = document.getElementById('sync-btn'); const toSync = watchlist.filter(m => !m.synced);
             if (toSync.length === 0) return; if (syncBtn) syncBtn.disabled = true;
             try { accessToken = await getValidToken(); } catch (e) { if (!isAuto) showToast('Auth error. Refresh & try again.', true); return; }
-            let calId = 'primary'; try { calId = await getOrCreateMovieCalendar(); } catch (err) {}
-            
+            let calId = 'primary'; try { calId = await getOrCreateMovieCalendar(); } catch (err) { }
+
             let ok = 0, fail = 0;
             for (const movie of toSync) {
                 if (!movie.releaseDate) { fail++; continue; }
@@ -2499,8 +3584,17 @@
         // INITIALIZE
         // ==========================================
         window.onload = () => {
-            setupPWA(); loadData(); populateYearSelector(); checkSavedAuth(); updateListsUI(); fetchMoviesForCurrentMonth(); fetchRereleases(); initGoogleAuth(); initFirebase(); 
+            setupPWA();
+            loadData();
+            populateYearSelector();
+            checkSavedAuth();
+            updateListsUI();
+            fetchMoviesForCurrentMonth();
+            fetchRereleases();
+            initGoogleAuth();
+            initFirebase();
         };
     </script>
 </body>
+
 </html>
