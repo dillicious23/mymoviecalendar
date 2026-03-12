@@ -1579,9 +1579,17 @@
             background: #eee;
         }
         
-        /* Cropper Overrides */
-        .cropper-view-box, .cropper-face {
+        /* Cropper Overrides - Fix Touch Issues */
+        .cropper-container, 
+        .cropper-drag-box,
+        .cropper-crop-box,
+        .cropper-view-box,
+        .cropper-face {
             border-radius: 8px;
+            touch-action: none;
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
         }
     </style>
 </head>
@@ -1814,7 +1822,7 @@
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('ticket-builder-modal')">&times;</button>
             <h3 style="margin-top:0;">Save Ticket</h3>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. Crop it to just the QR Code.</p>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll use AI to read the details!</p>
             
             <button class="photo-upload-btn" id="trigger-ticket-upload" onclick="document.getElementById('ticket-upload-input').click()">
                 <span style="font-size: 1.5rem;">📸</span> Select Ticket Screenshot
@@ -1822,6 +1830,7 @@
             <input type="file" id="ticket-upload-input" accept="image/*" style="display:none;">
             
             <div id="cropper-container" style="display: none; max-height: 300px; margin-bottom: 1rem;">
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;">Swipe to box the QR code:</p>
                 <img id="ticket-cropper-img" src="" style="max-width: 100%;">
             </div>
             
@@ -2604,6 +2613,48 @@
         // 🎟️ TICKETS & 🍿 MOVIE NIGHT PLANNER
         // ==========================================
         
+        async function analyzeTicketWithGemini(base64Image) {
+            const apiKey = ""; // Canvas execution environment injects the key
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const [header, b64Data] = base64Image.split(',');
+            const mimeType = header.split(';')[0].split(':')[1];
+            
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: "Extract the following details from this movie ticket screenshot: 1. The name of the theater/cinema. 2. The date of the movie (format YYYY-MM-DD). 3. The time of the movie (format HH:MM in 24-hour time). Return ONLY a valid JSON object with the exact keys 'theater', 'date', and 'time'. If a value cannot be found, use an empty string." },
+                        { inlineData: { mimeType: mimeType, data: b64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            let retries = 3;
+            let delay = 1000;
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error("API Error: " + response.statusText);
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    return JSON.parse(text);
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+        
         window.openTicketModal = function() {
             if(!currentViewedMovie) return;
             if(!currentUser) return showToast("Sign in to save digital tickets!", true);
@@ -2629,20 +2680,58 @@
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function (ev) {
-                document.getElementById('trigger-ticket-upload').style.display = 'none';
-                document.getElementById('cropper-container').style.display = 'block';
-                document.getElementById('ticket-details-form').style.display = 'block';
+                const imgSource = new Image();
+                imgSource.onload = async function() {
+                    // Quick resize for Gemini to keep payload small
+                    const canvas = document.createElement('canvas');
+                    const MAX = 1200; 
+                    let w = imgSource.width;
+                    let h = imgSource.height;
+                    if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
+                    else if (h > MAX) { w *= MAX / h; h = MAX; }
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(imgSource, 0, 0, w, h);
+                    const base64ForGemini = canvas.toDataURL('image/jpeg', 0.8);
                 
-                const img = document.getElementById('ticket-cropper-img');
-                img.src = ev.target.result;
-                
-                if(cropperInstance) cropperInstance.destroy();
-                cropperInstance = new Cropper(img, {
-                    aspectRatio: 1, // QR codes are square
-                    viewMode: 1,
-                    autoCropArea: 0.8,
-                    background: false
-                });
+                    document.getElementById('trigger-ticket-upload').style.display = 'none';
+                    document.getElementById('cropper-container').style.display = 'block';
+                    document.getElementById('ticket-details-form').style.display = 'block';
+                    
+                    const img = document.getElementById('ticket-cropper-img');
+                    img.src = ev.target.result; // Use high res for cropping
+                    
+                    if(cropperInstance) cropperInstance.destroy();
+                    cropperInstance = new Cropper(img, {
+                        aspectRatio: 1, // QR codes are square
+                        viewMode: 1,
+                        autoCropArea: 0.8,
+                        background: false
+                    });
+                    
+                    // Trigger Gemini Extraction
+                    const saveBtn = document.getElementById('save-ticket-btn');
+                    const origText = saveBtn.innerText;
+                    saveBtn.innerText = "✨ Analyzing ticket with Gemini...";
+                    saveBtn.disabled = true;
+
+                    try {
+                        const data = await analyzeTicketWithGemini(base64ForGemini);
+                        if (data.theater) document.getElementById('ticket-theater').value = data.theater;
+                        if (data.date) document.getElementById('ticket-date').value = data.date;
+                        if (data.time) document.getElementById('ticket-time').value = data.time;
+                        
+                        if (data.theater || data.date || data.time) {
+                            showToast('✨ Ticket details extracted!');
+                        }
+                    } catch(err) {
+                        console.error("Gemini Vision failed:", err);
+                        showToast('Could not read ticket text. You can enter details manually.', true);
+                    } finally {
+                        saveBtn.innerText = origText;
+                        saveBtn.disabled = false;
+                    }
+                }
+                imgSource.src = ev.target.result;
             };
             reader.readAsDataURL(file);
         });
@@ -2706,35 +2795,45 @@
             if(!currentUser) return;
             
             const location = document.getElementById('plan-location').value.trim() || 'TBD';
-            const date = document.getElementById('plan-date').value;
-            const time = document.getElementById('plan-time').value;
+            const date = document.getElementById('plan-date').value || '';
+            const time = document.getElementById('plan-time').value || '';
             
             const invitees = Array.from(document.querySelectorAll('.friend-invite-cb:checked')).map(cb => cb.value);
             
             const newPlan = {
-                id: crypto.randomUUID(),
-                movieId: currentViewedMovie.id,
-                title: currentViewedMovie.title,
-                posterPath: currentViewedMovie.posterPath,
+                id: crypto.randomUUID() || Date.now().toString(),
+                movieId: currentViewedMovie?.id || '',
+                title: currentViewedMovie?.title || 'Unknown',
+                posterPath: currentViewedMovie?.posterPath || '',
                 location,
                 date,
                 time,
-                hostUid: currentUser.uid,
+                hostUid: currentUser.uid || '',
                 hostName: currentUser.displayName || 'Movie Fan',
                 hostAvatar: currentUser.photoURL || '',
-                invitees,
+                invitees: invitees || [],
                 createdAt: new Date().toISOString()
             };
             
             try {
-                // Save to my plans subcollection
-                await db.collection('users').doc(currentUser.uid).collection('plans').doc(newPlan.id).set(newPlan);
+                // Save to main user document 'plans' array to avoid Firestore subcollection permission errors
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const userSnap = await userRef.get();
+                
+                let existingPlans = [];
+                if (userSnap.exists && userSnap.data().plans) {
+                    existingPlans = userSnap.data().plans;
+                }
+                existingPlans.push(newPlan);
+                
+                await userRef.update({ plans: existingPlans });
+                
                 closeModal('plan-modal');
                 showToast('Invites sent! 🍿');
                 await loadPlans(); // reload UI
             } catch (err) {
                 console.error("Error saving plan:", err);
-                showToast('Error creating plan.', true);
+                showToast('Error: ' + err.message, true); // Output the exact DB error 
             }
         }
         
@@ -2743,21 +2842,27 @@
             try {
                 let loadedPlans = [];
                 
-                // 1. Fetch my hosted plans
-                const myPlansSnap = await db.collection('users').doc(currentUser.uid).collection('plans').get();
-                myPlansSnap.forEach(doc => loadedPlans.push(doc.data()));
+                // 1. Fetch my hosted plans from my user doc array
+                const mySnap = await db.collection('users').doc(currentUser.uid).get();
+                if (mySnap.exists && mySnap.data().plans) {
+                    loadedPlans.push(...mySnap.data().plans);
+                }
                 
                 // 2. Fetch plans from friends where I am invited
-                // To avoid indexing issues, we pull the friend's whole plan list and filter client-side.
-                // This is extremely safe and fast for small social apps.
                 for (const friend of friends) {
-                    const fPlansSnap = await db.collection('users').doc(friend.uid).collection('plans').get();
-                    fPlansSnap.forEach(doc => {
-                        const plan = doc.data();
-                        if(plan.invitees && plan.invitees.includes(currentUser.uid)) {
-                            loadedPlans.push(plan);
+                    try {
+                        const fSnap = await db.collection('users').doc(friend.uid).get();
+                        if (fSnap.exists && fSnap.data().plans) {
+                            const fPlans = fSnap.data().plans;
+                            fPlans.forEach(plan => {
+                                if(plan.invitees && plan.invitees.includes(currentUser.uid)) {
+                                    loadedPlans.push(plan);
+                                }
+                            });
                         }
-                    });
+                    } catch(e) {
+                        console.warn('Could not load plans for friend', friend.uid, e);
+                    }
                 }
                 
                 // Sort by date upcoming
