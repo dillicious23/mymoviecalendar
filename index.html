@@ -2794,15 +2794,75 @@
             openModal('qr-enlarge-modal');
         }
         
-        // ── TICKET: ZXing BrowserMultiFormatReader (QR, Aztec, DataMatrix, PDF417, barcodes) ──
+        // ── TICKET: Multi-strategy barcode detection (Aztec, QR, DataMatrix, etc.) ──
         async function detectBarcodeFromImage(imgEl) {
-            const codeReader = new ZXing.BrowserMultiFormatReader();
-            try {
-                // decodeFromImageElement handles all formats including Aztec internally
-                return await codeReader.decodeFromImageElement(imgEl);
-            } catch(e) {
-                return null;
+            // Helper: draw imgEl onto a canvas at given scale, return the canvas
+            const toCanvas = (el, scale=1) => {
+                const cv = document.createElement('canvas');
+                cv.width  = Math.round((el.naturalWidth  || el.width)  * scale);
+                cv.height = Math.round((el.naturalHeight || el.height) * scale);
+                cv.getContext('2d').drawImage(el, 0, 0, cv.width, cv.height);
+                return cv;
+            };
+            // Helper: wrap a native BarcodeDetector result into ZXing-like shape
+            const wrapNative = r => ({ text: r.rawValue, resultPoints: r.cornerPoints || [] });
+
+            // Strategy 1: Native BarcodeDetector (Chrome/Edge) — best Aztec support
+            if (window.BarcodeDetector) {
+                try {
+                    const formats = ['aztec','qr_code','data_matrix','pdf417','code_128','code_39'];
+                    const det = new BarcodeDetector({ formats });
+                    for (const scale of [1, 1.5, 2]) {
+                        const cv  = toCanvas(imgEl, scale);
+                        const res = await det.detect(cv);
+                        if (res.length > 0) {
+                            console.log('[Barcode] Native detected at scale', scale, res[0].rawValue);
+                            return wrapNative(res[0]);
+                        }
+                    }
+                } catch(e) { console.log('[Barcode] Native failed:', e.message); }
             }
+
+            // Strategy 2: ZXing at 1× and 2×
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+            for (const scale of [1, 2]) {
+                try {
+                    const cv  = toCanvas(imgEl, scale);
+                    const url = cv.toDataURL();
+                    const tmp = new Image(); tmp.src = url;
+                    await new Promise(r => { tmp.onload = r; });
+                    const res = await codeReader.decodeFromImageElement(tmp);
+                    if (res) {
+                        console.log('[Barcode] ZXing detected at scale', scale, res.text);
+                        return res;
+                    }
+                } catch(e) { /* try next */ }
+            }
+
+            // Strategy 3: ZXing on contrast-boosted grayscale canvas
+            try {
+                const cv  = toCanvas(imgEl);
+                const ctx = cv.getContext('2d');
+                const id  = ctx.getImageData(0, 0, cv.width, cv.height);
+                const d   = id.data;
+                for (let i=0; i<d.length; i+=4) {
+                    const gray = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+                    const v    = gray < 128 ? 0 : 255;
+                    d[i]=d[i+1]=d[i+2]=v;
+                }
+                ctx.putImageData(id, 0, 0);
+                const url = cv.toDataURL();
+                const tmp = new Image(); tmp.src = url;
+                await new Promise(r => { tmp.onload = r; });
+                const res = await codeReader.decodeFromImageElement(tmp);
+                if (res) {
+                    console.log('[Barcode] ZXing+contrast detected', res.text);
+                    return res;
+                }
+            } catch(e) { /* give up */ }
+
+            console.log('[Barcode] Not detected');
+            return null;
         }
 
         // Crop the detected barcode out of the image, return base64 PNG
@@ -2837,7 +2897,7 @@
         // ── TICKET: AI Extraction (Primary Method) ──
         async function analyzeTicketWithGemini(){throw new Error("ocr-only");}
 
-        // ── TICKET: OCR — Tesseract.js (fully offline, no API needed) ──
+        // ── TICKET: OCR via Tesseract.js — fully offline ──
         async function analyzeTicketWithOCR(imgEl) {
             const yr = new Date().getFullYear();
             const statusEl = document.getElementById('ocr-status-bar');
@@ -2857,12 +2917,22 @@
             const full  = lines.join(' ');
             const out   = {theater:'',date:'',time:'',seats:''};
 
-            const MO={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
-                      may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,
-                      sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
-            const toMo = s=>{const k=(s||'').toLowerCase().replace(/[^a-z]/g,'');return MO[k]||MO[k.slice(0,3)]||0;};
-            const pad2 = n=>String(n).padStart(2,'0');
-            const mkD  = (m,d,y)=>(m&&d>=1&&d<=31)?`${y||yr}-${pad2(m)}-${pad2(d)}`:null;
+            const MO_EXACT = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
+                              may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,
+                              sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+            // Use FIRST alphabetic word of the line — catches "MAR |} | - S" but rejects "Mary ) ol"
+            const toMoExact = s => {
+                const words = ((s||'').match(/[A-Za-z]+/g)||[]);
+                if(!words.length) return 0;
+                const first = words[0].toLowerCase();
+                return MO_EXACT[first] || 0;
+            };
+            const toMo = s => {
+                const k = (s||'').toLowerCase().replace(/[^a-z]/g,'');
+                return MO_EXACT[k] || MO_EXACT[k.slice(0,3)] || 0;
+            };
+            const pad2 = n => String(n).padStart(2,'0');
+            const mkD  = (m,d,y) => (m&&d>=1&&d<=31) ? `${y||yr}-${pad2(m)}-${pad2(d)}` : null;
             const MON  = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
 
             // ── TIME ──
@@ -2875,55 +2945,60 @@
             }
 
             // ── DATE ──
+            // Phase 1: corpus of clean joined lines
             const corpus=[...lines];
             for(let i=0;i<lines.length-1;i++) corpus.push(lines[i]+' '+lines[i+1]);
             for(let i=0;i<lines.length-2;i++) corpus.push(lines[i]+' '+lines[i+1]+' '+lines[i+2]);
             corpus.push(full);
             for(const src of corpus){
                 let m;
-                // "Tuesday, March 10, 2026" or "March 10, 2026"
                 m=src.match(new RegExp('(?:\\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\\s+)?('+MON+')[\\s,]+(\\d{1,2})(?:st|nd|rd|th)?[,\\s]+(20\\d{2})','i'));
                 if(m){const d=mkD(toMo(m[1]),+m[2],m[3]);if(d){out.date=d;break;}}
-                // "March 10" or "MAR 19"
                 m=src.match(new RegExp('('+MON+')[.\\s,]+(\\d{1,2})(?!\\d)','i'));
                 if(m){const d=mkD(toMo(m[1]),+m[2]);if(d){out.date=d;break;}}
-                // "10 March"
                 m=src.match(new RegExp('(\\d{1,2})[.\\s]+('+MON+')(?!\\w)','i'));
                 if(m){const d=mkD(toMo(m[2]),+m[1]);if(d){out.date=d;break;}}
             }
-            // Harkins stacked fallback: find MAR line, then scan next 6 lines for any 1-2 digit number
-            // (ignores theater numbers like "18" in "Arrowhead Fountains 18")
+            // Phase 2: Harkins stacked-line fallback
+            // "MAR" is on its own line; "19" may be garbled on the SAME line as MAR (e.g. "MAR |} | - S")
+            // or on a nearby line. Use EXACT month match to avoid "Mary", "march" in movie titles, etc.
             if (!out.date) {
                 for(let i=0;i<lines.length;i++){
-                    const mo=toMo(lines[i]);
+                    // Must be a line that IS essentially just a month abbreviation/name
+                    const mo = toMoExact(lines[i]);
                     if(!mo) continue;
-                    // Collect all standalone 1-2 digit numbers in the next 6 lines
+
+                    // Try extracting day from the SAME line first (Harkins puts day on same line, OCR adds noise)
+                    // e.g. "MAR |} | - S"  →  strip non-digits → could be empty if OCR garbled it
+                    // Also try noise-stripped version: keep only digits
+                    const sameLine = lines[i].replace(/[^0-9]/g,'');
+                    if(sameLine.length>=1&&sameLine.length<=2){
+                        const d=mkD(mo,+sameLine);if(d){out.date=d;break;}
+                    }
+
+                    // Try the next 6 lines for a clean day number
+                    // But SKIP lines that clearly belong to theater/seat/movie content
+                    const SKIP_DAY = /\b(CINE|XL|PG|Matinee|Arrowhead|Cinemark|AMC|Regal|Harkins|Alamo|Fountains|Add to|Wallet)\b/i;
                     for(let j=i+1;j<=Math.min(i+6,lines.length-1);j++){
-                        // Strip any non-digit chars that OCR noise adds (like |, }, etc.)
+                        if(SKIP_DAY.test(lines[j])) continue;
                         const cleaned=lines[j].replace(/[^0-9]/g,'');
                         if(cleaned.length>=1&&cleaned.length<=2){
                             const n=+cleaned;
-                            const d=mkD(mo,n);
-                            if(d){out.date=d;break;}
+                            if(n>=1&&n<=31){
+                                const d=mkD(mo,n);if(d){out.date=d;break;}
+                            }
                         }
                     }
                     if(out.date) break;
                 }
             }
 
-            // ── SEATS ──
-            // Match patterns: F-5, F5, F 5 — seat code is letter + optional dash/space + digits
+            // ── SEATS ── handles F-5, F5, F 5
             const SEAT_PAT = /\b([A-HJ-Z]-?\d{1,3})\b/g;
-            // First check lines containing "seat" label
             const seatLineIdx=lines.findIndex(l=>/\bseats?\b/i.test(l));
-            const seatSearch = seatLineIdx>=0
-                ? lines[seatLineIdx]+' '+(lines[seatLineIdx+1]||'')
-                : full;
-            const seatMatches=[...seatSearch.matchAll(SEAT_PAT)]
-                .map(m=>m[1])
-                .filter(s=>!/^(PG|2D|3D|XL|ID)/i.test(s));
+            const seatSearch=seatLineIdx>=0 ? lines[seatLineIdx]+' '+(lines[seatLineIdx+1]||'') : full;
+            const seatMatches=[...seatSearch.matchAll(SEAT_PAT)].map(m=>m[1]).filter(s=>!/^(PG|2D|3D|XL|ID)/i.test(s));
             if(seatMatches.length>0) out.seats=seatMatches.join(', ');
-            // Also scan any line with "F-" or seat-like codes if still empty
             if(!out.seats){
                 for(const line of lines){
                     const sm=[...line.matchAll(SEAT_PAT)].map(m=>m[1]).filter(s=>!/^(PG|2D|3D|XL|ID)/i.test(s));
@@ -2931,39 +3006,28 @@
                 }
             }
 
-            // ── THEATER ──
+            // ── THEATER ── strip trailing time, address numbers
             const isJunk=l=>
                 /https?:\/\/|\.com\b|\.net\b|\.org\b/i.test(l)||
-                /[+()]{2,}/.test(l)||
-                /^\s*[\(\[]/.test(l)||
-                /\b\d{5,}\b/.test(l)||
-                l.length<4||l.length>70;
+                /[+()]{2,}/.test(l)||/^\s*[\(\[]/.test(l)||
+                /\b\d{5,}\b/.test(l)||l.length<4||l.length>70;
             const CHAIN=/\b(cinemark|amc|regal|harkins|alamo|megaplex|cinepolis|ipic|imax|arrowhead)\b/i;
-            const SKIP=/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|CINE)\b/i;
+            const SKIP_TH=/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|CINE)\b/i;
             const MONRE=new RegExp(MON,'i');
             const TIME_SUFFIX=/\s*\d{1,2}:\d{2}\s*(?:AM|PM)\s*$/i;
-
             for(const line of lines){
                 if(isJunk(line)) continue;
                 if(CHAIN.test(line)){
-                    // Strip trailing time, address numbers, and seat codes
-                    out.theater=line
-                        .replace(TIME_SUFFIX,'')
-                        .replace(/,.*$/,'')
-                        .replace(/\b\d{4,}.*$/,'')
-                        .trim();
+                    out.theater=line.replace(TIME_SUFFIX,'').replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();
                     break;
                 }
             }
             if(!out.theater){
                 for(const line of lines){
                     if(isJunk(line)||/^\d/.test(line)) continue;
-                    if(SKIP.test(line)||MONRE.test(line)) continue;
+                    if(SKIP_TH.test(line)||MONRE.test(line)) continue;
                     if(/\b(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line)) continue;
-                    if(/^[A-Z]/.test(line)){
-                        out.theater=line.replace(TIME_SUFFIX,'').replace(/,.*$/,'').trim();
-                        break;
-                    }
+                    if(/^[A-Z]/.test(line)){out.theater=line.replace(TIME_SUFFIX,'').replace(/,.*$/,'').trim();break;}
                 }
             }
 
@@ -3043,11 +3107,10 @@
                         (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='block';})();
                         
                         const cropperImg = document.getElementById('ticket-cropper-img');
-                        if (cropperImg) {
-                            cropperImg.src = ev.target.result; cropperImg.style.display = 'block'; cropperImg.style.maxWidth = '100%';
+                        if (cropperImg) { cropperImg.src = ev.target.result; cropperImg.style.display = 'block'; cropperImg.style.maxWidth = '100%';
                             if(cropperInstance) cropperInstance.destroy();
                             cropperInstance = new Cropper(cropperImg, {aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
-                        }
+                        } else { showToast("No barcode detected — fill details manually.", false); }
                         showToast("Could not auto-detect barcode. Please box it manually.", true);
                     }
 
@@ -3064,13 +3127,15 @@
                     // ── Step 2: Extract ticket details ──
                     try {
                         let data;
-                        document.getElementById('ocr-status-bar').textContent = '🔍 Reading your ticket...';
+                        document.getElementById('ocr-status-bar').textContent = '🧠 Analyzing text...';
                         
                         data = await analyzeTicketWithOCR(imgEl);
 
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
-                            if (data.date)    document.getElementById('ticket-date').value    = data.date;
+                            // If date not found, default to today so user just adjusts it
+                            const dateVal = data.date || new Date().toISOString().slice(0,10);
+                            document.getElementById('ticket-date').value = dateVal;
                             if (data.time)    document.getElementById('ticket-time').value    = data.time;
                             if (data.seats)   document.getElementById('ticket-seats').value   = data.seats;
 
