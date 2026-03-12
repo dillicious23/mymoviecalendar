@@ -2835,143 +2835,76 @@
         }
 
         // ── TICKET: AI Extraction (Primary Method) ──
-        async function analyzeTicketWithGemini(base64Image) {
-            const currentYear = new Date().getFullYear();
-            const [header, b64Data] = base64Image.split(',');
-            const mimeType = header.split(';')[0].split(':')[1];
+        async function analyzeTicketWithGemini() { throw new Error('ocr-only'); }
 
-            const prompt = `Look at this movie ticket screenshot and return ONLY a JSON object — no markdown, no explanation. Keys:
-{
-  "theater": "Cinema name only (e.g. Arrowhead Fountains 18 or Cinemark Mesa 16). No address, no date, no time.",
-  "date": "YYYY-MM-DD. Use year ${currentYear} if not visible. Harkins tickets show MAR and 19 on separate lines — combine them.",
-  "time": "24-hour HH:MM (e.g. 14:00 for 2:00 PM, 19:25 for 7:25 PM).",
-  "seats": "Seat codes only e.g. F-5, F-6 or F7, F8. Not ticket counts."
-}`;
-
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': '',
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-calls': 'true'
-                },
-                body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 256,
-                    messages: [{
-                        role: 'user',
-                        content: [
-                            { type: 'image', source: { type: 'base64', media_type: mimeType, data: b64Data } },
-                            { type: 'text', text: prompt }
-                        ]
-                    }]
-                })
-            });
-
-            if (!response.ok) throw new Error('Claude API ' + response.status);
-            const result = await response.json();
-            let text = (result.content?.[0]?.text || '').replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-            return JSON.parse(text);
-        }
-
-        // ── TICKET: OCR with Tesseract.js (Offline Fallback for robust parsing) ──
+        // ── TICKET: OCR — Tesseract.js (fully offline, no API needed) ──
         async function analyzeTicketWithOCR(imgEl) {
-            const currentYear = new Date().getFullYear();
-
+            const yr = new Date().getFullYear();
+            const statusEl = document.getElementById('ocr-status-bar');
             const canvas = document.createElement('canvas');
-            canvas.width  = imgEl.naturalWidth  || imgEl.width;
-            canvas.height = imgEl.naturalHeight || imgEl.height;
+            canvas.width  = imgEl.naturalWidth  || imgEl.width  || 800;
+            canvas.height = imgEl.naturalHeight || imgEl.height || 600;
             canvas.getContext('2d').drawImage(imgEl, 0, 0);
-
             const worker = await Tesseract.createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        const btn = document.getElementById('save-ticket-btn');
-                        if (btn) btn.innerText = `✨ Reading text... ${Math.round(m.progress*100)}%`;
-                    }
-                }
+                logger: m => { if (m.status === 'recognizing text' && statusEl)
+                    statusEl.textContent = `📖 Reading text... ${Math.round(m.progress*100)}%`; }
             });
             const { data: { text } } = await worker.recognize(canvas);
             await worker.terminate();
-
+            console.log('[OCR raw]', text);
             const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
             const full  = lines.join(' ');
-            const result = { theater: '', date: '', time: '', seats: '' };
-
-            // 1. Time Extraction
-            const timeMatch = full.match(/\b((?:1[0-2]|0?[1-9]):[0-5][0-9])\s*(AM|PM|am|pm)?\b/i);
-            if (timeMatch) {
-                let hr = parseInt(timeMatch[1].split(':')[0], 10);
-                let min = timeMatch[1].split(':')[1];
-                let ampm = (timeMatch[2] || "").toUpperCase();
-                if (ampm === "PM" && hr < 12) hr += 12;
-                if (ampm === "AM" && hr === 12) hr = 0;
-                result.time = `${hr.toString().padStart(2, '0')}:${min}`;
+            const out   = { theater:'', date:'', time:'', seats:'' };
+            const MO = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
+                        may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,
+                        sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+            const toMo  = s => { const k=(s||'').toLowerCase().replace(/[^a-z]/g,''); return MO[k]||MO[k.slice(0,3)]||0; };
+            const pad2  = n => String(n).padStart(2,'0');
+            const mkD   = (m,d,y) => (m&&d>=1&&d<=31)?`${y||yr}-${pad2(m)}-${pad2(d)}`:null;
+            const MON   = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+            // TIME
+            const tm = full.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
+            if (tm) { let h=+tm[1]; if(tm[3].toUpperCase()==='PM'&&h!==12)h+=12; if(tm[3].toUpperCase()==='AM'&&h===12)h=0; out.time=`${pad2(h)}:${tm[2]}`; }
+            // DATE — build corpus of lines, pairs, triples, full text
+            const corpus = [...lines];
+            for (let i=0;i<lines.length-1;i++) corpus.push(lines[i]+' '+lines[i+1]);
+            for (let i=0;i<lines.length-2;i++) corpus.push(lines[i]+' '+lines[i+1]+' '+lines[i+2]);
+            corpus.push(full);
+            for (const src of corpus) {
+                let m;
+                m=src.match(new RegExp('(?:\\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\\s+)?('+MON+')[\\s,]+(\\d{1,2})(?:st|nd|rd|th)?[,\\s]+(20\\d{2})','i'));
+                if(m){const d=mkD(toMo(m[1]),+m[2],m[3]);if(d){out.date=d;break;}}
+                m=src.match(new RegExp('('+MON+')[.\\s,]+(\\d{1,2})(?!\\d)','i'));
+                if(m){const d=mkD(toMo(m[1]),+m[2]);if(d){out.date=d;break;}}
+                m=src.match(new RegExp('(\\d{1,2})[.\\s]+('+MON+')(?!\\w)','i'));
+                if(m){const d=mkD(toMo(m[2]),+m[1]);if(d){out.date=d;break;}}
             }
-
-            // 2. Date Extraction (Robust against newline splits)
-            const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12, january:1, february:2, march:3, april:4, august:8, september:9, october:10, november:11, december:12 };
-            const monRegex = Object.keys(months).join('|');
-            
-            // Format 1: Tuesday, March 10, 2026
-            const dateMatch1 = full.match(new RegExp(`\\b(${monRegex})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d{2})`, 'i'));
-            // Format 2: MAR \n 19 (handles newlines and spaces natively for Harkins stacked dates)
-            const dateMatch2 = text.replace(/\n/g, ' ').match(new RegExp(`\\b(${monRegex})[\\s.,|]+(\\d{1,2})\\b`, 'i'));
-            // Format 3: 19 MAR
-            const dateMatch3 = full.match(new RegExp(`\\b(\\d{1,2})[\\s.,]+(${monRegex})\\b`, 'i'));
-
-            if (dateMatch1) {
-                let m = months[dateMatch1[1].toLowerCase()];
-                result.date = `${dateMatch1[3]}-${m.toString().padStart(2, '0')}-${dateMatch1[2].padStart(2, '0')}`;
-            } else if (dateMatch2) {
-                let m = months[dateMatch2[1].toLowerCase()];
-                result.date = `${currentYear}-${m.toString().padStart(2, '0')}-${dateMatch2[2].padStart(2, '0')}`;
-            } else if (dateMatch3) {
-                let m = months[dateMatch3[2].toLowerCase()];
-                result.date = `${currentYear}-${m.toString().padStart(2, '0')}-${dateMatch3[1].padStart(2, '0')}`;
-            }
-
-            // 3. Seat Extraction
-            const seatPattern = /\bSeats?\s*[:\-]?\s*([A-Z]-?\d{1,3}(?:[\s,]+[A-Z]-?\d{1,3})*)/i;
-            const seatMatch = full.match(seatPattern);
-            if (seatMatch) {
-                result.seats = seatMatch[1].replace(/\s+/g, ' ').trim();
-            } else {
-                // Check for raw formatting "F-5, F-6" or "F7,F8" skipping standard video formats
-                const rawSeats = full.match(/\b([A-Z]-?\d{1,3}(?:(?:\s*,\s*|\s+)[A-Z]-?\d{1,3})+)\b/);
-                if (rawSeats && !/\b(PG|AM|PM|2D|3D)\b/i.test(rawSeats[0])) {
-                    result.seats = rawSeats[1].trim();
-                }
-            }
-
-            // 4. Theater Extraction
-            for (let line of lines) {
-                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead|Fountains|Cinema|Theatre)\b/i.test(line)) {
-                    // Stop at the address part
-                    result.theater = line.replace(/\b\d{4,}\s+[A-Z].*/i, '').trim();
-                    break;
-                }
-            }
-
-            // Fallback for independent theaters
-            if (!result.theater) {
-                for (let line of lines) {
-                    if (line.length < 5 || line.length > 40) continue;
-                    if (/^\d/.test(line)) continue;
-                    if (/\b(PG|PG-13|R|G|NR|AM|PM|Auditorium|Seats?|Tickets?|Confirmation)\b/i.test(line)) continue;
-                    if (line.match(new RegExp(`\\b(${monRegex})\\b`, 'i'))) continue;
-                    
-                    if (/^[A-Z]/.test(line)) {
-                        result.theater = line;
-                        break;
+            // Harkins stacked "MAR / 19 / THU" fallback
+            if (!out.date) {
+                for (let i=0;i<lines.length;i++) {
+                    const mo=toMo(lines[i]); if(!mo) continue;
+                    for (let j=i+1;j<=Math.min(i+4,lines.length-1);j++) {
+                        const nm=lines[j].match(/^(\d{1,2})$/);
+                        if(nm){const d=mkD(mo,+nm[1]);if(d){out.date=d;break;}}
                     }
+                    if(out.date) break;
                 }
             }
-
-            return result;
+            // SEATS
+            const seatIdx=lines.findIndex(l=>/\bseats?\b/i.test(l));
+            if(seatIdx>=0){const j=lines[seatIdx]+' '+(lines[seatIdx+1]||'');const sm=j.match(/\bseats?\s*[:\-]?\s*([A-Z]-?\d{1,3}(?:[\s,]+[A-Z]-?\d{1,3})*)/i);if(sm)out.seats=sm[1].trim();}
+            if(!out.seats){const sm2=full.match(/\b([A-Z]\d{1,3}(?:\s*[,\/]\s*[A-Z]\d{1,3})+)\b/);if(sm2&&!/\b(PG|AM|PM|2D|3D|ID)\b/.test(sm2[0]))out.seats=sm2[1].trim();}
+            // THEATER
+            const isJunk=l=>/https?:\/\/|\.com\b|\.net\b|\.org\b/i.test(l)||/[+()]{2,}/.test(l)||/^\s*[\(\[]/.test(l)||/\b\d{5,}\b/.test(l)||l.length<4||l.length>65;
+            const CHAIN=/\b(cinemark|amc|regal|harkins|alamo|megaplex|cinepolis|ipic|imax|arrowhead)\b/i;
+            const SKIP=/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|CINE)\b/i;
+            const MONRE=new RegExp(MON,'i');
+            for(const line of lines){if(isJunk(line))continue;if(CHAIN.test(line)){out.theater=line.replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();break;}}
+            if(!out.theater){for(const line of lines){if(isJunk(line)||/^\d/.test(line))continue;if(SKIP.test(line)||MONRE.test(line))continue;if(/\b(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line))continue;if(/^[A-Z]/.test(line)){out.theater=line.replace(/,.*$/,'').trim();break;}}}
+            console.log('[OCR result]', out);
+            return out;
         }
-        
+
         window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
             if (mId) {
                 currentViewedMovie = { id: mId, title: mTitle, posterPath: mPoster };
@@ -3049,13 +2982,9 @@
                             cropperImg.style.display = 'block';
                             cropperImg.style.maxWidth = '100%';
                             if(cropperInstance) cropperInstance.destroy();
-                            cropperInstance = new Cropper(cropperImg, {
-                                aspectRatio: 1, viewMode: 1, dragMode: 'move',
-                                autoCropArea: 0.6, background: false
-                            });
-                        } else {
-                            showToast("No barcode detected — fill details manually.", false);
+                            cropperInstance = new Cropper(cropperImg, {aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
                         }
+                        showToast("No barcode detected — fill details manually.", false);
                     }
 
                     // Resize for Gemini/OCR to keep payload small
@@ -3071,17 +3000,9 @@
                     // ── Step 2: Extract ticket details ──
                     try {
                         let data;
-                        document.getElementById('ocr-status-bar').textContent = '🧠 Analyzing text...';
+                        document.getElementById('ocr-status-bar').textContent = '🔍 Reading your ticket...';
                         
-                        try {
-                            // Try Gemini First
-                            data = await analyzeTicketWithGemini(base64ForExtraction);
-                        } catch (geminiErr) {
-                            // Fallback to robust offline OCR
-                            console.warn("Claude API unavailable, falling back to local OCR...");
-                            document.getElementById('ocr-status-bar').textContent = 'Fallback local scanner activated...';
-                            data = await analyzeTicketWithOCR(imgEl);
-                        }
+                        data = await analyzeTicketWithOCR(imgEl);
 
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
