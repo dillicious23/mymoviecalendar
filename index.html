@@ -19,6 +19,8 @@
 
     <!-- ZXing Library for Barcode Detection -->
     <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <!-- Tesseract.js: in-browser OCR for ticket text -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <!-- Firebase SDK (Compat v9) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -2769,60 +2771,121 @@
             openModal('qr-enlarge-modal');
         }
         
-        async function analyzeTicketWithGemini(base64Image) {
-            const apiKey = ""; // Canvas execution environment injects the key
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
-            const [header, b64Data] = base64Image.split(',');
-            const mimeType = header.split(';')[0].split(':')[1];
-            
+        // Replaces Gemini — runs entirely in the browser, no API key needed
+        async function analyzeTicketWithOCR(imgEl) {
             const currentYear = new Date().getFullYear();
-            
-            // Using Structured Output JSON Schema for strict extraction
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.` },
-                        { inlineData: { mimeType: mimeType, data: b64Data } }
-                    ]
-                }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "OBJECT",
-                        properties: {
-                            theater: { type: "STRING", description: "Theater or Cinema name" },
-                            date: { type: "STRING", description: "Convert to exact YYYY-MM-DD format based on the text. Example: If text is 'MAR 19' and year is 2026, output '2026-03-19'" },
-                            time: { type: "STRING", description: "Convert to 24-hour HH:MM format. Example: '2:00 PM' becomes '14:00'" },
-                            seats: { type: "STRING", description: "Look specifically for Seat numbers, Rows, or Auditoriums. Examples: 'F-5, F-6', 'Row G Seats 12-13', or 'Auditorium 1, F5'. If not found, return empty." }
-                        },
-                        required: ["theater", "date", "time", "seats"]
+
+            // Draw image to canvas for Tesseract
+            const canvas = document.createElement('canvas');
+            canvas.width  = imgEl.naturalWidth  || imgEl.width;
+            canvas.height = imgEl.naturalHeight || imgEl.height;
+            canvas.getContext('2d').drawImage(imgEl, 0, 0);
+
+            const worker = await Tesseract.createWorker('eng', 1, {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const pct = Math.round(m.progress * 100);
+                        const btn = document.getElementById('save-ticket-btn');
+                        if (btn) btn.innerText = `✨ Reading text... ${pct}%`;
                     }
                 }
-            };
+            });
+            const { data: { text } } = await worker.recognize(canvas);
+            await worker.terminate();
 
-            let retries = 3;
-            let delay = 1000;
-            while (retries > 0) {
-                try {
-                    const response = await fetch(url, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload)
-                    });
-                    if (!response.ok) throw new Error("API Error: " + response.statusText);
-                    const result = await response.json();
-                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!text) throw new Error("No text returned");
-                    return JSON.parse(text);
-                } catch (e) {
-                    retries--;
-                    if (retries === 0) throw e;
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2;
+            console.log('[OCR] raw text:', JSON.stringify(text));
+
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+            const full  = lines.join(' ');
+            const result = { theater: '', date: '', time: '', seats: '' };
+
+            // ── Theater ──
+            const theaterRe = /((?:[A-Z][A-Za-z\u00C0-\u024F&'.\-]+ ){1,5}(?:Theatre|Theatres|Theater|Cinemas?|IMAX|AMC|Regal|Cinemark|Harkins|Alamo|Cinépolis|iPic|XD|\d{1,2})(?:[^,\n]{0,25})?)/;
+            const tm = full.match(theaterRe);
+            if (tm) {
+                result.theater = tm[1].trim();
+            } else {
+                // Fallback: first long capitalised line that isn't a date/time
+                for (const line of lines) {
+                    if (/^[A-Z]/.test(line) && line.length > 8 && !/^\d/.test(line) && !/\b(PG|AM|PM|THU|MON|TUE|WED|FRI|SAT|SUN)\b/.test(line)) {
+                        result.theater = line; break;
+                    }
                 }
             }
+
+            // ── Date ──
+            const MMAP = {
+                jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+                january:1,february:2,march:3,april:4,june:6,july:7,august:8,
+                september:9,october:10,november:11,december:12
+            };
+            const toMo = s => { const k = s.toLowerCase().replace(/[^a-z]/g,''); return MMAP[k] || MMAP[k.slice(0,3)] || 0; };
+            const fmtDate = (mo, dy) => mo && dy ? `${currentYear}-${String(mo).padStart(2,'0')}-${String(+dy).padStart(2,'0')}` : null;
+            const MON = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
+            // Build corpus: individual lines + adjacent pairs + full joined text
+            const corpus = [...lines];
+            for (let i = 0; i < lines.length - 1; i++) corpus.push(lines[i] + ' ' + lines[i + 1]);
+            corpus.push(full);
+
+            for (const src of corpus) {
+                let m;
+                // ISO: 2026-03-19
+                m = src.match(/(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+                if (m) { result.date = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`; break; }
+                // MM/DD/YYYY
+                m = src.match(/(\d{1,2})\/(\d{1,2})\/(20?\d{2})/);
+                if (m) { const yr = m[3].length === 2 ? '20'+m[3] : m[3]; result.date = `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; break; }
+                // "MAR 19" / "March 19" / "Mar. 19"
+                m = src.match(new RegExp(MON + '[.\\s,]+([0-9]{1,2})(?!\\d)', 'i'));
+                if (m) { const d = fmtDate(toMo(m[1]), m[2]); if (d) { result.date = d; break; } }
+                // "19 MAR"
+                m = src.match(new RegExp('([0-9]{1,2})[.\\s]+' + MON, 'i'));
+                if (m) { const d = fmtDate(toMo(m[2]), m[1]); if (d) { result.date = d; break; } }
+            }
+
+            // Last resort: find month word anywhere, then find lone day number on its own line
+            if (!result.date) {
+                const mw = full.match(new RegExp(MON, 'i'));
+                if (mw) {
+                    const mo = toMo(mw[1]);
+                    for (const line of lines) {
+                        const nm = line.match(/^(\d{1,2})$/);
+                        if (nm) { const dy = +nm[1]; if (dy >= 1 && dy <= 31) { result.date = fmtDate(mo, dy); break; } }
+                    }
+                }
+            }
+
+            // ── Time ──
+            let tm2 = full.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+            if (tm2) {
+                let h = +tm2[1]; const ampm = tm2[3].toUpperCase();
+                if (ampm === 'PM' && h !== 12) h += 12;
+                if (ampm === 'AM' && h === 12) h = 0;
+                result.time = `${String(h).padStart(2,'0')}:${tm2[2]}`;
+            } else {
+                tm2 = full.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/);
+                if (tm2) result.time = `${tm2[1]}:${tm2[2]}`;
+            }
+
+            // ── Seats ──
+            // Prefer an explicit "Seats" label line
+            const seatLine = lines.find(l => /seats?\s*[:\-]/i.test(l));
+            if (seatLine) {
+                const sm = seatLine.match(/([A-Z]-?\d{1,3}(?:[,\s]+[A-Z]-?\d{1,3})*)/);
+                if (sm) result.seats = sm[1].replace(/\s+/g, ' ').trim();
+            }
+            if (!result.seats) {
+                // Scan for letter-number patterns like F-5, F-6
+                const all = full.match(/\b[A-Z]-?\d{1,3}\b/g);
+                if (all) {
+                    const seatLike = [...new Set(all.filter(s => /[A-Z]-?\d/.test(s)))];
+                    if (seatLike.length) result.seats = seatLike.join(', ');
+                }
+            }
+
+            console.log('[OCR] parsed result:', result);
+            return result;
         }
         
         window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
@@ -2955,19 +3018,9 @@
                         showToast("✨ Barcode Auto-Detected!");
                     }
 
-                    // Resize for Gemini to keep payload small
-                    let w = imgSource.width, h = imgSource.height;
-                    const MAX = 1200; 
-                    if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
-                    else if (h > MAX) { w *= MAX / h; h = MAX; }
-                    const gCanvas = document.createElement('canvas');
-                    gCanvas.width = w; gCanvas.height = h;
-                    gCanvas.getContext('2d').drawImage(imgSource, 0, 0, w, h);
-                    const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
-                    
-                    // Trigger Gemini Extraction
+                    // Extract ticket details with in-browser OCR
                     try {
-                        const data = await analyzeTicketWithGemini(base64ForGemini);
+                        const data = await analyzeTicketWithOCR(imgSource);
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
                             if (data.date) document.getElementById('ticket-date').value = data.date;
@@ -2977,8 +3030,8 @@
                             if (data.theater || data.date || data.time || data.seats) showToast('✨ Ticket details extracted!');
                         }
                     } catch(err) {
-                        console.error("Gemini Vision failed:", err);
-                        showToast('Could not read text automatically. You can enter details manually.', true);
+                        console.error("OCR failed:", err);
+                        showToast('Could not read text automatically — please fill in manually.', true);
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
                         saveBtn.disabled = false;
