@@ -14,7 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <!-- ZXing: multi-format barcode decoder (QR, Aztec, DataMatrix, PDF417, etc.) -->
-    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.2/umd/index.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
     <!-- Tesseract.js: in-browser OCR for ticket text -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
@@ -2773,87 +2773,45 @@
             openModal('qr-enlarge-modal');
         }
         
-        // ── TICKET: Multi-format barcode detection via ZXing (QR, Aztec, DataMatrix, PDF417, etc.) ──
-        function detectBarcodeFromImage(imgEl) {
-            const canvas = document.createElement('canvas');
-            canvas.width  = imgEl.naturalWidth;
-            canvas.height = imgEl.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(imgEl, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-            // ZXing expects RGB (3 bytes/px), canvas gives RGBA (4 bytes/px) — convert
-            const rgba = imageData.data;
-            const rgb  = new Uint8ClampedArray((rgba.length / 4) * 3);
-            for (let i = 0; i < rgba.length / 4; i++) {
-                rgb[i * 3]     = rgba[i * 4];
-                rgb[i * 3 + 1] = rgba[i * 4 + 1];
-                rgb[i * 3 + 2] = rgba[i * 4 + 2];
-            }
-
-            const hints = new Map();
-            hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-            hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-                ZXing.BarcodeFormat.QR_CODE,
-                ZXing.BarcodeFormat.AZTEC,
-                ZXing.BarcodeFormat.DATA_MATRIX,
-                ZXing.BarcodeFormat.PDF_417,
-                ZXing.BarcodeFormat.CODE_128,
-                ZXing.BarcodeFormat.CODE_39,
-            ]);
-
-            const reader = new ZXing.MultiFormatReader();
-            reader.setHints(hints);
-
+        // ── TICKET: ZXing BrowserMultiFormatReader (QR, Aztec, DataMatrix, PDF417, barcodes) ──
+        async function detectBarcodeFromImage(imgEl) {
+            const codeReader = new ZXing.BrowserMultiFormatReader();
             try {
-                const src      = new ZXing.RGBLuminanceSource(rgb, canvas.width, canvas.height);
-                const binarizer = new ZXing.HybridBinarizer(src);
-                const bitmap    = new ZXing.BinaryBitmap(binarizer);
-                return reader.decode(bitmap);  // throws NotFoundException if nothing found
+                // decodeFromImageElement handles all formats including Aztec internally
+                return await codeReader.decodeFromImageElement(imgEl);
             } catch(e) {
-                // Try inverted (some Aztec codes are light-on-dark)
-                try {
-                    const src2      = new ZXing.InvertedLuminanceSource(new ZXing.RGBLuminanceSource(rgb, canvas.width, canvas.height));
-                    const binarizer2 = new ZXing.HybridBinarizer(src2);
-                    const bitmap2    = new ZXing.BinaryBitmap(binarizer2);
-                    return reader.decode(bitmap2);
-                } catch(e2) {
-                    return null;
-                }
+                return null;
             }
         }
 
-        // Crop the barcode region out of the image using ZXing result points
+        // Crop the detected barcode out of the image, return base64 PNG
         function cropBarcodeFromImage(imgEl, result) {
-            const points = result.getResultPoints();
-            if (!points || points.length < 2) {
-                // Fallback: center square of image
-                const side = Math.min(imgEl.naturalWidth, imgEl.naturalHeight) * 0.6;
-                const sx = (imgEl.naturalWidth  - side) / 2;
-                const sy = (imgEl.naturalHeight - side) / 2;
-                const c = document.createElement('canvas');
-                c.width = c.height = 300;
-                const cx = c.getContext('2d');
-                cx.fillStyle = '#fff'; cx.fillRect(0,0,300,300);
-                cx.drawImage(imgEl, sx, sy, side, side, 0, 0, 300, 300);
-                return c.toDataURL('image/png');
-            }
-            const xs  = points.map(p => p.getX());
-            const ys  = points.map(p => p.getY());
-            const pad = Math.max(imgEl.naturalWidth, imgEl.naturalHeight) * 0.04; // 4% padding
-            const x   = Math.max(0, Math.min(...xs) - pad);
-            const y   = Math.max(0, Math.min(...ys) - pad);
-            const x2  = Math.min(imgEl.naturalWidth,  Math.max(...xs) + pad);
-            const y2  = Math.min(imgEl.naturalHeight, Math.max(...ys) + pad);
-            const side = Math.max(x2 - x, y2 - y); // square
+            const points = result.resultPoints;
             const canvas = document.createElement('canvas');
             canvas.width = canvas.height = 300;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 300, 300);
-            ctx.drawImage(imgEl, x, y, side, side, 0, 0, 300, 300);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, 300, 300);
+
+            if (points && points.length >= 2) {
+                const xs  = points.map(p => p.x);
+                const ys  = points.map(p => p.y);
+                const pad = Math.max(imgEl.naturalWidth, imgEl.naturalHeight) * 0.05;
+                const x   = Math.max(0, Math.min(...xs) - pad);
+                const y   = Math.max(0, Math.min(...ys) - pad);
+                const x2  = Math.min(imgEl.naturalWidth,  Math.max(...xs) + pad);
+                const y2  = Math.min(imgEl.naturalHeight, Math.max(...ys) + pad);
+                const side = Math.max(x2 - x, y2 - y);
+                ctx.drawImage(imgEl, x, y, side, side, 0, 0, 300, 300);
+            } else {
+                // No corner points — crop center 60% square
+                const side = Math.min(imgEl.naturalWidth, imgEl.naturalHeight) * 0.6;
+                const sx = (imgEl.naturalWidth  - side) / 2;
+                const sy = (imgEl.naturalHeight - side) / 2;
+                ctx.drawImage(imgEl, sx, sy, side, side, 0, 0, 300, 300);
+            }
             return canvas.toDataURL('image/png');
         }
-
         // ── TICKET: OCR with Tesseract.js + smart regex parsing ──
         async function parseTicketWithOCR(imgEl, statusCallback) {
             statusCallback('🔍 Reading ticket text...');
@@ -2899,37 +2857,68 @@
                 }
             }
 
-            // ── Date — search joined text AND line-by-line (handles big fonts split across OCR lines) ──
+            // ── Date — maximally permissive, logs raw OCR text for debugging ──
+            console.log('[OCR RAW TEXT]', JSON.stringify(text));
+            console.log('[OCR LINES]', JSON.stringify(lines));
+
             const currentYear = new Date().getFullYear();
-            const MONTHS = {
-                JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12,
-                JANUARY:1,FEBRUARY:2,MARCH:3,APRIL:4,JUNE:6,JULY:7,AUGUST:8,
-                SEPTEMBER:9,OCTOBER:10,NOVEMBER:11,DECEMBER:12
+            const MONTH_MAP = {
+                jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+                january:1,february:2,march:3,april:4,june:6,july:7,august:8,
+                september:9,october:10,november:11,december:12
             };
-            const MON_PAT = '(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)';
-            function resolveMonth(str) {
-                const k = str.toUpperCase().replace(/[^A-Z]/g,'');
-                return MONTHS[k] || MONTHS[k.slice(0,3)] || null;
+
+            function monthNum(s) {
+                const k = s.toLowerCase().replace(/[^a-z]/g,'');
+                return MONTH_MAP[k] || MONTH_MAP[k.slice(0,3)] || 0;
             }
-            function tryParseDate(src) {
-                // "MAR 19", "MARCH 19", "Mar. 19" — optional noise chars between month and day
-                let m = src.match(new RegExp(MON_PAT + '[.\\s,]+([0-9]{1,2})(?=[^0-9]|$)', 'i'));
-                if (m) { const mo = resolveMonth(m[1]); if (mo) return `${currentYear}-${String(mo).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`; }
-                // "19 MAR" reverse
-                m = src.match(new RegExp('([0-9]{1,2})[.\\s]+' + MON_PAT, 'i'));
-                if (m) { const mo = resolveMonth(m[2]); if (mo) return `${currentYear}-${String(mo).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`; }
-                // ISO "2026-03-19"
-                m = src.match(/(\d{4})-(\d{2})-(\d{2})/);
-                if (m) return m[0];
-                // "03/19/2026"
-                m = src.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-                if (m) { const yr = m[3].length===2?'20'+m[3]:m[3]; return `${yr}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`; }
-                return null;
+            function toDateStr(mo, dy) {
+                if (!mo || !dy) return null;
+                return `${currentYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
             }
-            // Try full text, then each line, then adjacent line pairs (for "MAR" / "19" on separate lines)
-            let dm = tryParseDate(full);
-            if (!dm) { for (let i=0; i<lines.length; i++) { dm = tryParseDate(lines[i]); if (dm) break; if (i+1<lines.length) { dm = tryParseDate(lines[i]+' '+lines[i+1]); if (dm) break; } } }
-            if (dm) result.date = dm;
+
+            // Build an extended corpus: all lines + adjacent pairs + full joined text
+            const corpus = [...lines];
+            for (let i = 0; i < lines.length - 1; i++) corpus.push(lines[i] + ' ' + lines[i+1]);
+            corpus.push(full);
+
+            const MON_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
+            let foundDate = null;
+
+            for (const src of corpus) {
+                if (foundDate) break;
+                // ISO: 2026-03-19
+                let m = src.match(/(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                if (m) { foundDate = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`; break; }
+                // MM/DD/YYYY or MM/DD/YY
+                m = src.match(/(\d{1,2})\/(\d{1,2})\/(20?\d{2})/);
+                if (m) { const yr = m[3].length===2?'20'+m[3]:m[3]; foundDate = `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; break; }
+                // "MAR 19" / "March 19" / "Mar. 19" (month then day)
+                m = src.match(new RegExp(MON_RE + '[\s.,]+([0-9]{1,2})(?!\d)', 'i'));
+                if (m) { const mo = monthNum(m[1]); foundDate = toDateStr(mo, parseInt(m[2])); if (foundDate) break; }
+                // "19 MAR" (day then month)
+                m = src.match(new RegExp('([0-9]{1,2})[\s.]+' + MON_RE, 'i'));
+                if (m) { const mo = monthNum(m[2]); foundDate = toDateStr(mo, parseInt(m[1])); if (foundDate) break; }
+            }
+
+            // Last-resort: find any month word in the text, then look for the nearest standalone 1-2 digit number
+            if (!foundDate) {
+                const monthMatch = full.match(new RegExp(MON_RE, 'i'));
+                if (monthMatch) {
+                    const mo = monthNum(monthMatch[1]);
+                    // Search all lines for a standalone 1-2 digit number (likely the day)
+                    for (const line of lines) {
+                        const numMatch = line.match(/^(\d{1,2})$/) || line.match(/^\s*(\d{1,2})\s*$/);
+                        if (numMatch) {
+                            const dy = parseInt(numMatch[1]);
+                            if (dy >= 1 && dy <= 31) { foundDate = toDateStr(mo, dy); break; }
+                        }
+                    }
+                }
+            }
+
+            if (foundDate) result.date = foundDate;
             // ── Time ──
             // "2:00 PM", "14:00", "2:00PM"
             let tm = full.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -3013,7 +3002,7 @@
                     const qrStat  = document.getElementById('qr-status');
                     document.getElementById('ocr-status-bar').textContent = '🔎 Scanning for QR code...';
 
-                    const qrCode = detectBarcodeFromImage(imgEl);
+                    const qrCode = await detectBarcodeFromImage(imgEl);
                     if (qrCode) {
                         scannedQrBase64 = cropBarcodeFromImage(imgEl, qrCode);
                         qrImg.src = scannedQrBase64;
