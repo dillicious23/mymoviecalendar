@@ -13,10 +13,12 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <!-- ZXing: multi-format barcode decoder (QR, Aztec, DataMatrix, PDF417, etc.) -->
+    <!-- Cropper.js for Manual Cropping -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <!-- ZXing Library for Barcode Detection -->
     <script src="https://unpkg.com/@zxing/library@latest"></script>
-    <!-- Tesseract.js: in-browser OCR for ticket text -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <!-- Firebase SDK (Compat v9) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -1647,30 +1649,17 @@
             background: #eee;
         }
         
-        /* QR preview box */
-        #qr-preview-box {
-            display: none;
-            margin: 0.8rem 0;
-            background: #111;
-            border-radius: 10px;
-            padding: 1rem;
-            text-align: center;
-        }
-        #qr-preview-box img {
-            width: 160px; height: 160px;
-            image-rendering: pixelated;
-            border-radius: 6px;
-            border: 3px solid var(--success-green);
-        }
-        #qr-preview-box.error img { border-color: #e50914; }
-        #qr-status {
-            font-size: 0.8rem; margin-top: 0.5rem;
-            font-weight: bold; color: var(--success-green);
-        }
-        #qr-preview-box.error #qr-status { color: #e50914; }
-        #ocr-status-bar {
-            font-size: 0.78rem; color: #f5c518; margin-bottom: 0.5rem;
-            min-height: 1.1em; text-align: center; font-weight: bold;
+        /* Cropper Overrides - Fix Touch Issues */
+        .cropper-container, 
+        .cropper-drag-box,
+        .cropper-crop-box,
+        .cropper-view-box,
+        .cropper-face {
+            border-radius: 8px;
+            touch-action: none;
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
         }
     </style>
 </head>
@@ -1903,24 +1892,30 @@
         <div class="modal-content" style="text-align: center;">
             <button class="modal-close" onclick="closeModal('ticket-builder-modal')">&times;</button>
             <h3 style="margin-top:0;">Save Ticket</h3>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket — we'll auto-detect the QR code and read the details.</p>
-
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1rem;">Upload a screenshot of your ticket. We'll use AI to read the text!</p>
+            
             <button class="photo-upload-btn" id="trigger-ticket-upload" onclick="document.getElementById('ticket-upload-input').click()">
                 <span style="font-size: 1.5rem;">📸</span> Select Ticket Screenshot
             </button>
             <input type="file" id="ticket-upload-input" accept="image/*" style="display:none;">
-
-            <!-- QR auto-detect preview -->
-            <div id="qr-preview-box">
-                <img id="qr-preview-img" src="" alt="QR Code">
-                <div id="qr-status">✓ QR code detected</div>
+            
+            <div id="cropper-container" style="display: none; margin-bottom: 1rem;">
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem;" id="cropper-instruction">Box the barcode (Pan & Zoom supported):</p>
+                <div style="height: 270px; width: 100%; overflow: hidden;">
+                    <img id="ticket-cropper-img" src="" style="max-width: 100%; display:block;">
+                </div>
             </div>
 
+            <!-- QR Preview Container -->
+            <div id="qr-preview-container" style="display: none; text-align: center; margin-bottom: 1rem; background: #111; padding: 10px; border-radius: 8px;">
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 0.5rem; margin-top: 0;">✨ Auto-detected Barcode:</p>
+                <img id="qr-preview-img" src="" style="width: 150px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);">
+            </div>
+            
             <div id="ticket-details-form" style="display: none; text-align: left;">
-                <div id="ocr-status-bar"></div>
                 <div class="modal-input-group">
                     <label>Theater / Cinema Name</label>
-                    <input type="text" id="ticket-theater" placeholder="e.g. Arrowhead Fountains 18">
+                    <input type="text" id="ticket-theater" placeholder="Search for theater...">
                     <div id="ticket-theater-autocomplete" style="position:absolute; top:100%; left:0; right:0; background:#222; border:1px solid #444; z-index:100; max-height:150px; overflow-y:auto; display:none; border-radius: 4px;"></div>
                 </div>
                 <div class="modal-input-group" style="display:flex; gap: 10px;">
@@ -2144,9 +2139,10 @@
         let editingPhotoBase64 = null;
         let editingPlanId = null;
         
-        let currentViewedMovie = null; // {id, title, posterPath}
+        let currentViewedMovie = null;
         let currentPlanTicketId = null; 
-        let scannedQrBase64 = null; // stores auto-detected QR crop
+        let cropperInstance = null;
+        let globalAutoCroppedQR = null;
 
         let pendingTokenResolve = null;
         let pendingTokenReject = null;
@@ -2773,181 +2769,60 @@
             openModal('qr-enlarge-modal');
         }
         
-        // ── TICKET: ZXing BrowserMultiFormatReader (QR, Aztec, DataMatrix, PDF417, barcodes) ──
-        async function detectBarcodeFromImage(imgEl) {
-            const codeReader = new ZXing.BrowserMultiFormatReader();
-            try {
-                // decodeFromImageElement handles all formats including Aztec internally
-                return await codeReader.decodeFromImageElement(imgEl);
-            } catch(e) {
-                return null;
-            }
-        }
-
-        // Crop the detected barcode out of the image, return base64 PNG
-        function cropBarcodeFromImage(imgEl, result) {
-            const points = result.resultPoints;
-            const canvas = document.createElement('canvas');
-            canvas.width = canvas.height = 300;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, 300, 300);
-
-            if (points && points.length >= 2) {
-                const xs  = points.map(p => p.x);
-                const ys  = points.map(p => p.y);
-                const pad = Math.max(imgEl.naturalWidth, imgEl.naturalHeight) * 0.05;
-                const x   = Math.max(0, Math.min(...xs) - pad);
-                const y   = Math.max(0, Math.min(...ys) - pad);
-                const x2  = Math.min(imgEl.naturalWidth,  Math.max(...xs) + pad);
-                const y2  = Math.min(imgEl.naturalHeight, Math.max(...ys) + pad);
-                const side = Math.max(x2 - x, y2 - y);
-                ctx.drawImage(imgEl, x, y, side, side, 0, 0, 300, 300);
-            } else {
-                // No corner points — crop center 60% square
-                const side = Math.min(imgEl.naturalWidth, imgEl.naturalHeight) * 0.6;
-                const sx = (imgEl.naturalWidth  - side) / 2;
-                const sy = (imgEl.naturalHeight - side) / 2;
-                ctx.drawImage(imgEl, sx, sy, side, side, 0, 0, 300, 300);
-            }
-            return canvas.toDataURL('image/png');
-        }
-        // ── TICKET: OCR with Tesseract.js + smart regex parsing ──
-        async function parseTicketWithOCR(imgEl, statusCallback) {
-            statusCallback('🔍 Reading ticket text...');
-
-            // Draw full image to canvas for Tesseract
-            const canvas = document.createElement('canvas');
-            canvas.width  = imgEl.naturalWidth;
-            canvas.height = imgEl.naturalHeight;
-            canvas.getContext('2d').drawImage(imgEl, 0, 0);
-
-            const worker = await Tesseract.createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        statusCallback(`🔍 Reading text... ${Math.round(m.progress * 100)}%`);
-                    }
-                }
-            });
-
-            const { data: { text } } = await worker.recognize(canvas);
-            await worker.terminate();
-
-            statusCallback('🧠 Parsing details...');
-            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-            const full  = lines.join(' ');
-
-            const result = { theater: '', date: '', time: '', seats: '' };
-
-            // ── Theater: look for known chains + auditorium numbers ──
-            const theaterPatterns = [
-                /([A-Z][A-Za-z\s]+(?:Theatres?|Theater|Cinema|Cinemas?|AMC|Regal|Cinemark|Harkins|Alamo|IMAX|XD|Cinépolis|iPic)[^\n,]{0,30})/i,
-                /([A-Z][A-Za-z\s]{3,30}\s+\d{1,2})(?:\s|$)/  // "Arrowhead Fountains 18"
-            ];
-            for (const pat of theaterPatterns) {
-                const m = full.match(pat);
-                if (m) { result.theater = m[1].trim(); break; }
-            }
-            // Fallback: first line that looks like a proper name (capital, not a date/time)
-            if (!result.theater) {
-                for (const line of lines) {
-                    if (/^[A-Z]/.test(line) && line.length > 6 && !/^\d/.test(line) && !/\d{4}/.test(line)) {
-                        result.theater = line; break;
-                    }
-                }
-            }
-
-            // ── Date — maximally permissive, logs raw OCR text for debugging ──
-            console.log('[OCR RAW TEXT]', JSON.stringify(text));
-            console.log('[OCR LINES]', JSON.stringify(lines));
-
+        async function analyzeTicketWithGemini(base64Image) {
+            const apiKey = ""; // Canvas execution environment injects the key
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const [header, b64Data] = base64Image.split(',');
+            const mimeType = header.split(';')[0].split(':')[1];
+            
             const currentYear = new Date().getFullYear();
-            const MONTH_MAP = {
-                jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
-                january:1,february:2,march:3,april:4,june:6,july:7,august:8,
-                september:9,october:10,november:11,december:12
+            
+            // Using Structured Output JSON Schema for strict extraction
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.` },
+                        { inlineData: { mimeType: mimeType, data: b64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            theater: { type: "STRING", description: "Theater or Cinema name" },
+                            date: { type: "STRING", description: "Convert to exact YYYY-MM-DD format based on the text. Example: If text is 'MAR 19' and year is 2026, output '2026-03-19'" },
+                            time: { type: "STRING", description: "Convert to 24-hour HH:MM format. Example: '2:00 PM' becomes '14:00'" },
+                            seats: { type: "STRING", description: "Look specifically for Seat numbers, Rows, or Auditoriums. Examples: 'F-5, F-6', 'Row G Seats 12-13', or 'Auditorium 1, F5'. If not found, return empty." }
+                        },
+                        required: ["theater", "date", "time", "seats"]
+                    }
+                }
             };
 
-            function monthNum(s) {
-                const k = s.toLowerCase().replace(/[^a-z]/g,'');
-                return MONTH_MAP[k] || MONTH_MAP[k.slice(0,3)] || 0;
-            }
-            function toDateStr(mo, dy) {
-                if (!mo || !dy) return null;
-                return `${currentYear}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
-            }
-
-            // Build an extended corpus: all lines + adjacent pairs + full joined text
-            const corpus = [...lines];
-            for (let i = 0; i < lines.length - 1; i++) corpus.push(lines[i] + ' ' + lines[i+1]);
-            corpus.push(full);
-
-            const MON_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-
-            let foundDate = null;
-
-            for (const src of corpus) {
-                if (foundDate) break;
-                // ISO: 2026-03-19
-                let m = src.match(/(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})/);
-                if (m) { foundDate = `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`; break; }
-                // MM/DD/YYYY or MM/DD/YY
-                m = src.match(/(\d{1,2})\/(\d{1,2})\/(20?\d{2})/);
-                if (m) { const yr = m[3].length===2?'20'+m[3]:m[3]; foundDate = `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`; break; }
-                // "MAR 19" / "March 19" / "Mar. 19" (month then day)
-                m = src.match(new RegExp(MON_RE + '[\s.,]+([0-9]{1,2})(?!\d)', 'i'));
-                if (m) { const mo = monthNum(m[1]); foundDate = toDateStr(mo, parseInt(m[2])); if (foundDate) break; }
-                // "19 MAR" (day then month)
-                m = src.match(new RegExp('([0-9]{1,2})[\s.]+' + MON_RE, 'i'));
-                if (m) { const mo = monthNum(m[2]); foundDate = toDateStr(mo, parseInt(m[1])); if (foundDate) break; }
-            }
-
-            // Last-resort: find any month word in the text, then look for the nearest standalone 1-2 digit number
-            if (!foundDate) {
-                const monthMatch = full.match(new RegExp(MON_RE, 'i'));
-                if (monthMatch) {
-                    const mo = monthNum(monthMatch[1]);
-                    // Search all lines for a standalone 1-2 digit number (likely the day)
-                    for (const line of lines) {
-                        const numMatch = line.match(/^(\d{1,2})$/) || line.match(/^\s*(\d{1,2})\s*$/);
-                        if (numMatch) {
-                            const dy = parseInt(numMatch[1]);
-                            if (dy >= 1 && dy <= 31) { foundDate = toDateStr(mo, dy); break; }
-                        }
-                    }
+            let retries = 3;
+            let delay = 1000;
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error("API Error: " + response.statusText);
+                    const result = await response.json();
+                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("No text returned");
+                    return JSON.parse(text);
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
                 }
             }
-
-            if (foundDate) result.date = foundDate;
-            // ── Time ──
-            // "2:00 PM", "14:00", "2:00PM"
-            let tm = full.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-            if (tm) {
-                let h = parseInt(tm[1]), m2 = tm[2], ampm = tm[3].toUpperCase();
-                if (ampm === 'PM' && h !== 12) h += 12;
-                if (ampm === 'AM' && h === 12) h = 0;
-                result.time = `${String(h).padStart(2,'0')}:${m2}`;
-            } else {
-                tm = full.match(/\b(\d{2}):(\d{2})\b/);
-                if (tm) result.time = `${tm[1]}:${tm[2]}`;
-            }
-
-            // ── Seats ──
-            // "F-5, F-6" or "F5 F6" or "Seat: F-5"
-            let sm = full.match(/\b([A-Z]-?\d{1,3})(?:[,\s]+([A-Z]-?\d{1,3}))*\b/g);
-            if (sm) {
-                // Filter out single-letter matches that are just words
-                const seatLike = sm.filter(s => /[A-Z]-?\d/.test(s) && s.length >= 2);
-                if (seatLike.length > 0) result.seats = seatLike.join(', ');
-            }
-            // Also look for explicit "Seats" label
-            const seatLine = lines.find(l => /seats?[:\s]/i.test(l));
-            if (seatLine) {
-                const sm2 = seatLine.match(/([A-Z]-?\d{1,3}(?:[,\s]+[A-Z]-?\d{1,3})*)/);
-                if (sm2) result.seats = sm2[1].replace(/\s+/g, ' ').trim();
-            }
-
-            return result;
         }
         
         window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
@@ -2956,22 +2831,28 @@
             } else if (!currentViewedMovie) {
                 return showToast("No movie selected!", true);
             }
-            if (!currentUser) return showToast("Sign in to save digital tickets!", true);
 
-            // Reset state
-            scannedQrBase64 = null;
-            document.getElementById('ticket-upload-input').value = '';
+            if(!currentUser) return showToast("Sign in to save digital tickets!", true);
+            
+            document.getElementById('ticket-upload-input').value = ''; 
             document.getElementById('ticket-theater').value = th || '';
-            document.getElementById('ticket-date').value   = dt || new Date().toISOString().split('T')[0];
-            document.getElementById('ticket-time').value   = tm || '19:00';
-            document.getElementById('ticket-seats').value  = '';
-            document.getElementById('ocr-status-bar').textContent = '';
+            document.getElementById('ticket-date').value = dt || new Date().toISOString().split('T')[0];
+            document.getElementById('ticket-time').value = tm || '19:00';
+            document.getElementById('ticket-seats').value = '';
+            
             document.getElementById('trigger-ticket-upload').style.display = 'flex';
-            document.getElementById('qr-preview-box').style.display       = 'none';
-            document.getElementById('ticket-details-form').style.display  = 'none';
-            document.getElementById('qr-preview-box').classList.remove('error');
-
+            document.getElementById('cropper-container').style.display = 'none';
+            document.getElementById('ticket-details-form').style.display = 'none';
+            document.getElementById('qr-preview-container').style.display = 'none';
+            
             currentPlanTicketId = planId;
+            globalAutoCroppedQR = null;
+            
+            if(cropperInstance) cropperInstance.destroy();
+            cropperInstance = null;
+            document.getElementById('ticket-cropper-img').src = '';
+            document.getElementById('cropper-instruction').innerText = "Box the barcode (Pan & Zoom supported):";
+            
             closeModal('movie-modal');
             openModal('ticket-builder-modal');
         }
@@ -2985,78 +2866,139 @@
         document.getElementById('ticket-upload-input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
+            
             document.getElementById('trigger-ticket-upload').style.display = 'none';
-            document.getElementById('ticket-details-form').style.display = 'block';
-            document.getElementById('ocr-status-bar').textContent = '📷 Loading image...';
             const saveBtn = document.getElementById('save-ticket-btn');
+            saveBtn.innerText = "✨ AI analyzing ticket...";
             saveBtn.disabled = true;
-
+            document.getElementById('ticket-details-form').style.display = 'block';
+            document.getElementById('qr-preview-container').style.display = 'none';
+            globalAutoCroppedQR = null;
+            
             const reader = new FileReader();
-            reader.onload = function(ev) {
-                const imgEl = new Image();
-                imgEl.onload = async function() {
-                    // ── Step 1: Auto-detect QR code ──
-                    const qrBox   = document.getElementById('qr-preview-box');
-                    const qrImg   = document.getElementById('qr-preview-img');
-                    const qrStat  = document.getElementById('qr-status');
-                    document.getElementById('ocr-status-bar').textContent = '🔎 Scanning for QR code...';
+            reader.onload = function (ev) {
+                const imgSource = new Image();
+                imgSource.onload = async function() {
+                    let barcodeFound = false;
 
-                    const qrCode = await detectBarcodeFromImage(imgEl);
-                    if (qrCode) {
-                        scannedQrBase64 = cropBarcodeFromImage(imgEl, qrCode);
-                        qrImg.src = scannedQrBase64;
-                        qrBox.classList.remove('error');
-                        qrStat.textContent = '✓ QR code detected automatically';
-                        qrBox.style.display = 'block';
-                    } else {
-                        // No QR found — show the full image cropped to square as fallback
-                        scannedQrBase64 = null;
-                        const fb = document.createElement('canvas');
-                        const side = Math.min(imgEl.naturalWidth, imgEl.naturalHeight);
-                        fb.width = fb.height = 300;
-                        fb.getContext('2d').drawImage(imgEl,
-                            (imgEl.naturalWidth - side) / 2, (imgEl.naturalHeight - side) / 2,
-                            side, side, 0, 0, 300, 300);
-                        scannedQrBase64 = fb.toDataURL('image/png');
-                        qrImg.src = scannedQrBase64;
-                        qrBox.classList.add('error');
-                        qrStat.textContent = '⚠ No QR found — showing full ticket';
-                        qrBox.style.display = 'block';
+                    // 1. Try Native BarcodeDetector
+                    try {
+                        if ('BarcodeDetector' in window) {
+                            const detector = new BarcodeDetector({ formats: ['aztec', 'qr_code', 'data_matrix', 'pdf417'] });
+                            const barcodes = await detector.detect(imgSource);
+                            if (barcodes.length > 0) {
+                                const { x, y, width, height } = barcodes[0].boundingBox;
+                                const pad = 20; 
+                                const cropCanvas = document.createElement('canvas');
+                                cropCanvas.width = width + (pad * 2);
+                                cropCanvas.height = height + (pad * 2);
+                                const ctx = cropCanvas.getContext('2d');
+                                ctx.drawImage(imgSource, x - pad, y - pad, width + (pad * 2), height + (pad * 2), 0, 0, cropCanvas.width, cropCanvas.height);
+                                
+                                globalAutoCroppedQR = cropCanvas.toDataURL('image/jpeg', 0.9);
+                                document.getElementById('qr-preview-img').src = globalAutoCroppedQR;
+                                document.getElementById('qr-preview-container').style.display = 'block';
+                                barcodeFound = true;
+                            }
+                        }
+                    } catch(e) {}
+                    
+                    // 2. Try ZXing Browser Fallback
+                    if (!barcodeFound && window.ZXing) {
+                        try {
+                            const codeReader = new ZXing.BrowserMultiFormatReader();
+                            const result = await codeReader.decodeFromImageElement(imgSource);
+                            if (result && result.resultPoints) {
+                                let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+                                result.resultPoints.forEach(p => {
+                                    if(p.x < minX) minX = p.x;
+                                    if(p.y < minY) minY = p.y;
+                                    if(p.x > maxX) maxX = p.x;
+                                    if(p.y > maxY) maxY = p.y;
+                                });
+                                const width = maxX - minX;
+                                const height = maxY - minY;
+                                const pad = Math.max(20, width * 0.2); 
+                                const cropCanvas = document.createElement('canvas');
+                                cropCanvas.width = width + (pad * 2);
+                                cropCanvas.height = height + (pad * 2);
+                                const ctx = cropCanvas.getContext('2d');
+                                ctx.drawImage(imgSource, minX - pad, minY - pad, width + (pad * 2), height + (pad * 2), 0, 0, cropCanvas.width, cropCanvas.height);
+                                
+                                globalAutoCroppedQR = cropCanvas.toDataURL('image/jpeg', 0.9);
+                                document.getElementById('qr-preview-img').src = globalAutoCroppedQR;
+                                document.getElementById('qr-preview-container').style.display = 'block';
+                                barcodeFound = true;
+                            }
+                        } catch(e) {}
                     }
 
-                    // ── Step 2: Tesseract OCR to extract ticket details ──
-                    try {
-                        const data = await parseTicketWithOCR(imgEl, (msg) => {
-                            document.getElementById('ocr-status-bar').textContent = msg;
+                    // 3. Fallback to Manual Cropper
+                    if (!barcodeFound) {
+                        document.getElementById('cropper-container').style.display = 'block';
+                        const img = document.getElementById('ticket-cropper-img');
+                        img.src = ev.target.result;
+                        img.style.display = 'block';
+                        img.style.maxWidth = '100%';
+                        
+                        if(cropperInstance) cropperInstance.destroy();
+                        cropperInstance = new Cropper(img, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.6,
+                            background: false
                         });
-                        if (data.theater) document.getElementById('ticket-theater').value = data.theater;
-                        if (data.date)    document.getElementById('ticket-date').value    = data.date;
-                        if (data.time)    document.getElementById('ticket-time').value    = data.time;
-                        if (data.seats)   document.getElementById('ticket-seats').value   = data.seats;
+                        showToast("Could not auto-detect barcode. Please box it manually.", true);
+                    } else {
+                        document.getElementById('cropper-container').style.display = 'none';
+                        showToast("✨ Barcode Auto-Detected!");
+                    }
 
-                        const filled = Object.values(data).filter(Boolean).length;
-                        if (filled > 0) {
-                            document.getElementById('ocr-status-bar').textContent = `✅ Found ${filled} field${filled>1?'s':''}! Review and adjust below.`;
-                        } else {
-                            document.getElementById('ocr-status-bar').textContent = `📝 Couldn't auto-read — please fill in manually.`;
+                    // Resize for Gemini to keep payload small
+                    let w = imgSource.width, h = imgSource.height;
+                    const MAX = 1200; 
+                    if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
+                    else if (h > MAX) { w *= MAX / h; h = MAX; }
+                    const gCanvas = document.createElement('canvas');
+                    gCanvas.width = w; gCanvas.height = h;
+                    gCanvas.getContext('2d').drawImage(imgSource, 0, 0, w, h);
+                    const base64ForGemini = gCanvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Trigger Gemini Extraction
+                    try {
+                        const data = await analyzeTicketWithGemini(base64ForGemini);
+                        if (data) {
+                            if (data.theater) document.getElementById('ticket-theater').value = data.theater;
+                            if (data.date) document.getElementById('ticket-date').value = data.date;
+                            if (data.time) document.getElementById('ticket-time').value = data.time;
+                            if (data.seats) document.getElementById('ticket-seats').value = data.seats;
+                            
+                            if (data.theater || data.date || data.time || data.seats) showToast('✨ Ticket details extracted!');
                         }
                     } catch(err) {
-                        console.error('OCR failed:', err);
-                        document.getElementById('ocr-status-bar').textContent = '📝 OCR unavailable — please fill in manually.';
+                        console.error("Gemini Vision failed:", err);
+                        showToast('Could not read text automatically. You can enter details manually.', true);
                     } finally {
+                        saveBtn.innerText = "Generate Digital Ticket";
                         saveBtn.disabled = false;
                     }
-                };
-                imgEl.src = ev.target.result;
+                }
+                imgSource.src = ev.target.result;
             };
             reader.readAsDataURL(file);
         });
         
         document.getElementById('save-ticket-btn').addEventListener('click', async () => {
-            if(!scannedQrBase64) return showToast('Please upload a ticket screenshot first.', true);
-
-            const qrBase64 = scannedQrBase64;
+            let qrBase64;
+            
+            if (globalAutoCroppedQR) {
+                qrBase64 = globalAutoCroppedQR;
+            } else if (cropperInstance) {
+                qrBase64 = cropperInstance.getCroppedCanvas({width: 300, height: 300}).toDataURL('image/jpeg', 0.8);
+            } else {
+                return showToast('Please upload a ticket screenshot first.', true);
+            }
             
             const theater = document.getElementById('ticket-theater').value.trim() || 'Unknown Theater';
             const date = document.getElementById('ticket-date').value;
@@ -3084,6 +3026,22 @@
             syncTicketsToFirestore();
             renderPlansAndTickets();
         });
+
+        // Ticket Linking Function
+        window.linkTicketToPlan = function(planId) {
+            const selectEl = document.getElementById(`link-ticket-${planId}`);
+            if(!selectEl) return;
+            const ticketId = selectEl.value;
+            if(!ticketId) return;
+            
+            const ticketIndex = myTickets.findIndex(t => String(t.id) === String(ticketId));
+            if(ticketIndex > -1) {
+                myTickets[ticketIndex].planId = planId;
+                syncTicketsToFirestore();
+                renderPlansAndTickets();
+                showToast('Ticket attached to plan! 🎟️');
+            }
+        }
 
         window.deleteTicket = function(ticketId) {
             if(confirm("Are you sure you want to delete this ticket?")) {
@@ -3286,10 +3244,11 @@
             const allTickets = [...myMappedTickets, ...allFriendsTickets];
             
             // Render Independent Tickets (Tickets not linked to a plan)
-            const independentTickets = myMappedTickets.filter(t => !t.planId);
+            // UPDATED: Kept in main list!
+            const independentTickets = myMappedTickets; 
             
             if(independentTickets.length === 0) {
-                ticketsContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No independent tickets saved. Find a movie and click "Save Ticket" to add one!</div>';
+                ticketsContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No tickets saved. Find a movie and click "Save Ticket" to add one!</div>';
             } else {
                 ticketsContainer.innerHTML = independentTickets.map(t => {
                     const img = (t.posterPath && t.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${t.posterPath}` : PLACEHOLDER_IMG;
@@ -3356,6 +3315,22 @@
                             `;
                         }
                         
+                        // Dropdown linking logic
+                        const unassignedTickets = myMappedTickets.filter(t => String(t.movieId) === String(p.movieId) && !t.planId);
+                        let linkExistingHtml = '';
+                        if (unassignedTickets.length > 0) {
+                            const options = unassignedTickets.map(t => `<option value="${t.id}">${formatDateMDY(t.date)} - ${t.theater}</option>`).join('');
+                            linkExistingHtml = `
+                                <div style="margin-top: 10px; display:flex; gap: 8px;">
+                                    <select id="link-ticket-${p.id}" style="background:#222; color:#fff; border:1px solid #444; border-radius:4px; flex:1; padding: 4px; font-size: 0.85rem;">
+                                        <option value="">Attach an existing ticket...</option>
+                                        ${options}
+                                    </select>
+                                    <button class="plan-action-btn" onclick="linkTicketToPlan('${p.id}')">Link</button>
+                                </div>
+                            `;
+                        }
+                        
                         // Map invitees to friend avatars
                         const guestAvatars = p.invitees.map(uid => {
                             const f = friends.find(x => x.uid === uid);
@@ -3391,8 +3366,9 @@
                             
                             ${ticketsHtml}
                             
-                            <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; justify-content:center; align-items:center;">
-                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Attach a Ticket to this Plan</button>
+                            <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; flex-direction: column; gap: 8px;">
+                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Scan New Ticket</button>
+                                ${linkExistingHtml}
                             </div>
                         </div>
                         `;
