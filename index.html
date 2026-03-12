@@ -2996,7 +2996,7 @@
                         if (filled > 0) {
                             document.getElementById('ocr-status-bar').textContent = `✅ Found ${filled} field${filled>1?'s':''}! Review and adjust below.`;
                         } else {
-                            document.getElementById('ocr-status-bar').textContent = '📝 Couldn't auto-read text — please fill in manually.';
+                            document.getElementById('ocr-status-bar').textContent = `📝 Couldn't auto-read — please fill in manually.`;
                         }
                     } catch(err) {
                         console.error('OCR failed:', err);
