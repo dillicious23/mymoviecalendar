@@ -2840,7 +2840,7 @@
             if (!apiKey) {
                 throw new Error("No API key found. Please enter it in your Profile tab.");
             }
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             
             const [header, b64Data] = base64Image.split(',');
             const mimeType = header.split(';')[0].split(':')[1];
@@ -3026,8 +3026,8 @@
             
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
-            (function(){var e=document.getElementById('ticket-cropper-img');if(e)e.src='';})();
-            (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
+            (function(){var _e=document.getElementById('ticket-cropper-img');if(_e)_e.src='';})();
+            (function(){var _e=document.getElementById('cropper-container');if(_e)_e.style.display='none';})();
 
             currentPlanTicketId = planId;
             closeModal('movie-modal');
@@ -3067,27 +3067,15 @@
                         qrBox.classList.remove('error');
                         qrStat.textContent = '✓ QR code detected automatically';
                         qrBox.style.display = 'block';
-                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
+                        (function(){var _e=document.getElementById('cropper-container');if(_e)_e.style.display='none';})();
                     } else {
                         // Fallback to manual cropper if barcode not found
                         scannedQrBase64 = null;
                         qrBox.style.display = 'none';
-                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='block';})();
+                        (function(){var _e=document.getElementById('cropper-container');if(_e)_e.style.display='block';})();
                         
-                        const cropperImg = document.getElementById('ticket-cropper-img');
-                        if(cropperImg){cropperImg.src = ev.target.result;
-                        cropperImg.style.display = 'block';
-                        cropperImg.style.maxWidth = '100%';}
-                        
-                        if(cropperInstance) cropperInstance.destroy();
-                        cropperInstance = new Cropper(cropperImg, {
-                            aspectRatio: 1,
-                            viewMode: 1,
-                            dragMode: 'move',
-                            autoCropArea: 0.6,
-                            background: false
-                        });
-                        showToast("Could not auto-detect barcode. Please box it manually.", true);
+                        // No cropper element in this build — just warn and continue to OCR
+                        showToast("No barcode auto-detected — fill in manually if needed.", false);
                     }
 
                     // Resize for Gemini/OCR to keep payload small
