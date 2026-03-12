@@ -2794,74 +2794,106 @@
             openModal('qr-enlarge-modal');
         }
         
-        // ── TICKET: Multi-strategy barcode detection (Aztec, QR, DataMatrix, etc.) ──
+        // ── TICKET: Multi-strategy barcode detection (Aztec, QR, DataMatrix, PDF417) ──
         async function detectBarcodeFromImage(imgEl) {
-            // Helper: draw imgEl onto a canvas at given scale, return the canvas
-            const toCanvas = (el, scale=1) => {
+            const W = imgEl.naturalWidth  || imgEl.width  || 800;
+            const H = imgEl.naturalHeight || imgEl.height || 600;
+
+            // Build a canvas from the element at a given scale + optional crop region
+            const makeCanvas = (scale=1, rx=0, ry=0, rw=1, rh=1) => {
+                const sw = Math.round(W * rw), sh = Math.round(H * rh);
+                const sx = Math.round(W * rx),  sy = Math.round(H * ry);
                 const cv = document.createElement('canvas');
-                cv.width  = Math.round((el.naturalWidth  || el.width)  * scale);
-                cv.height = Math.round((el.naturalHeight || el.height) * scale);
-                cv.getContext('2d').drawImage(el, 0, 0, cv.width, cv.height);
+                cv.width  = Math.round(sw * scale);
+                cv.height = Math.round(sh * scale);
+                cv.getContext('2d').drawImage(imgEl, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
                 return cv;
             };
-            // Helper: wrap a native BarcodeDetector result into ZXing-like shape
-            const wrapNative = r => ({ text: r.rawValue, resultPoints: r.cornerPoints || [] });
 
-            // Strategy 1: Native BarcodeDetector (Chrome/Edge) — best Aztec support
-            if (window.BarcodeDetector) {
-                try {
-                    const formats = ['aztec','qr_code','data_matrix','pdf417','code_128','code_39'];
-                    const det = new BarcodeDetector({ formats });
-                    for (const scale of [1, 1.5, 2]) {
-                        const cv  = toCanvas(imgEl, scale);
-                        const res = await det.detect(cv);
-                        if (res.length > 0) {
-                            console.log('[Barcode] Native detected at scale', scale, res[0].rawValue);
-                            return wrapNative(res[0]);
-                        }
-                    }
-                } catch(e) { console.log('[Barcode] Native failed:', e.message); }
-            }
-
-            // Strategy 2: ZXing at 1× and 2×
-            const codeReader = new ZXing.BrowserMultiFormatReader();
-            for (const scale of [1, 2]) {
-                try {
-                    const cv  = toCanvas(imgEl, scale);
-                    const url = cv.toDataURL();
-                    const tmp = new Image(); tmp.src = url;
-                    await new Promise(r => { tmp.onload = r; });
-                    const res = await codeReader.decodeFromImageElement(tmp);
-                    if (res) {
-                        console.log('[Barcode] ZXing detected at scale', scale, res.text);
-                        return res;
-                    }
-                } catch(e) { /* try next */ }
-            }
-
-            // Strategy 3: ZXing on contrast-boosted grayscale canvas
-            try {
-                const cv  = toCanvas(imgEl);
-                const ctx = cv.getContext('2d');
-                const id  = ctx.getImageData(0, 0, cv.width, cv.height);
-                const d   = id.data;
-                for (let i=0; i<d.length; i+=4) {
-                    const gray = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-                    const v    = gray < 128 ? 0 : 255;
-                    d[i]=d[i+1]=d[i+2]=v;
+            // Return a canvas with pixels binarised (helps with noisy screenshots)
+            const binarise = cv => {
+                const out = document.createElement('canvas');
+                out.width = cv.width; out.height = cv.height;
+                const ctx = out.getContext('2d');
+                ctx.drawImage(cv, 0, 0);
+                const id = ctx.getImageData(0,0,out.width,out.height), d=id.data;
+                for(let i=0;i<d.length;i+=4){
+                    const g = 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+                    d[i]=d[i+1]=d[i+2]= g<128?0:255;
                 }
-                ctx.putImageData(id, 0, 0);
+                ctx.putImageData(id,0,0);
+                return out;
+            };
+
+            const wrapNative = r => ({ text: r.rawValue, resultPoints: r.cornerPoints||[] });
+
+            // ZXing reader with TRY_HARDER + all relevant formats
+            const makeReader = () => {
+                const hints = new Map();
+                if(ZXing.BarcodeFormat && ZXing.DecodeHintType){
+                    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[
+                        ZXing.BarcodeFormat.AZTEC, ZXing.BarcodeFormat.QR_CODE,
+                        ZXing.BarcodeFormat.DATA_MATRIX, ZXing.BarcodeFormat.PDF_417,
+                        ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.CODE_39
+                    ]);
+                    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+                }
+                return new ZXing.BrowserMultiFormatReader(hints);
+            };
+
+            const tryZXing = async (cv) => {
+                const reader = makeReader();
                 const url = cv.toDataURL();
                 const tmp = new Image(); tmp.src = url;
-                await new Promise(r => { tmp.onload = r; });
-                const res = await codeReader.decodeFromImageElement(tmp);
-                if (res) {
-                    console.log('[Barcode] ZXing+contrast detected', res.text);
-                    return res;
-                }
-            } catch(e) { /* give up */ }
+                await new Promise(r=>{tmp.onload=r;tmp.onerror=r;});
+                try { return await reader.decodeFromImageElement(tmp); } catch(e){ return null; }
+            };
 
-            console.log('[Barcode] Not detected');
+            // Regions to try: full image + top-half + quadrants (barcode usually top area on Harkins)
+            const regions = [
+                [1,   0,    0,    1,    1   ],  // full at 1×
+                [2,   0,    0,    1,    1   ],  // full at 2×
+                [1.5, 0,    0,    1,    1   ],  // full at 1.5×
+                [2,   0,    0,    0.5,  0.5 ],  // top-left quadrant 2×
+                [2,   0.5,  0,    0.5,  0.5 ],  // top-right quadrant 2×
+                [2,   0,    0,    1,    0.5 ],  // top half 2×
+                [2,   0.25, 0.25, 0.5,  0.5 ],  // centre 2×
+                [3,   0,    0,    0.5,  0.5 ],  // top-left 3×
+                [3,   0.5,  0,    0.5,  0.5 ],  // top-right 3×
+            ];
+
+            // Strategy 1 — Native BarcodeDetector (best Aztec support in Chrome/Edge)
+            if (window.BarcodeDetector) {
+                try {
+                    const fmts = ['aztec','qr_code','data_matrix','pdf417','code_128'];
+                    const det  = new BarcodeDetector({formats: fmts});
+                    for (const [scale,rx,ry,rw,rh] of regions) {
+                        const cv  = makeCanvas(scale,rx,ry,rw,rh);
+                        const res = await det.detect(cv);
+                        if (res.length>0){
+                            console.log(`[Barcode] Native hit scale=${scale} region=[${rx},${ry},${rw},${rh}]`,res[0].rawValue);
+                            return wrapNative(res[0]);
+                        }
+                        // Also try binarised version
+                        const res2 = await det.detect(binarise(cv));
+                        if (res2.length>0){
+                            console.log(`[Barcode] Native+binarise hit`,res2[0].rawValue);
+                            return wrapNative(res2[0]);
+                        }
+                    }
+                } catch(e){ console.log('[Barcode] Native error:',e.message); }
+            }
+
+            // Strategy 2 — ZXing across regions
+            for (const [scale,rx,ry,rw,rh] of regions) {
+                const cv  = makeCanvas(scale,rx,ry,rw,rh);
+                const res = await tryZXing(cv);
+                if (res){ console.log(`[Barcode] ZXing hit scale=${scale} region=[${rx},${ry}]`,res.text); return res; }
+                const res2 = await tryZXing(binarise(cv));
+                if (res2){ console.log(`[Barcode] ZXing+binarise hit`,res2.text); return res2; }
+            }
+
+            console.log('[Barcode] Not detected after all strategies');
             return null;
         }
 
@@ -2897,19 +2929,19 @@
         // ── TICKET: AI Extraction (Primary Method) ──
         async function analyzeTicketWithGemini(){throw new Error("ocr-only");}
 
-        // ── TICKET: OCR via Tesseract.js — fully offline ──
+        // ── TICKET: OCR via Tesseract.js (fully offline) ──
         async function analyzeTicketWithOCR(imgEl) {
             const yr = new Date().getFullYear();
             const statusEl = document.getElementById('ocr-status-bar');
             const canvas = document.createElement('canvas');
             canvas.width  = imgEl.naturalWidth  || imgEl.width  || 800;
             canvas.height = imgEl.naturalHeight || imgEl.height || 600;
-            canvas.getContext('2d').drawImage(imgEl, 0, 0);
-            const worker = await Tesseract.createWorker('eng', 1, {
-                logger: m => { if (m.status==='recognizing text'&&statusEl)
-                    statusEl.textContent=`📖 Reading text... ${Math.round(m.progress*100)}%`; }
+            canvas.getContext('2d').drawImage(imgEl,0,0);
+            const worker = await Tesseract.createWorker('eng',1,{
+                logger: m=>{if(m.status==='recognizing text'&&statusEl)
+                    statusEl.textContent=`📖 Reading text... ${Math.round(m.progress*100)}%`;}
             });
-            const { data:{text} } = await worker.recognize(canvas);
+            const {data:{text}} = await worker.recognize(canvas);
             await worker.terminate();
             console.log('[OCR raw]', text);
 
@@ -2917,35 +2949,21 @@
             const full  = lines.join(' ');
             const out   = {theater:'',date:'',time:'',seats:''};
 
-            const MO_EXACT = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
-                              may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,
-                              sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
-            // Use FIRST alphabetic word of the line — catches "MAR |} | - S" but rejects "Mary ) ol"
-            const toMoExact = s => {
-                const words = ((s||'').match(/[A-Za-z]+/g)||[]);
-                if(!words.length) return 0;
-                const first = words[0].toLowerCase();
-                return MO_EXACT[first] || 0;
-            };
-            const toMo = s => {
-                const k = (s||'').toLowerCase().replace(/[^a-z]/g,'');
-                return MO_EXACT[k] || MO_EXACT[k.slice(0,3)] || 0;
-            };
-            const pad2 = n => String(n).padStart(2,'0');
-            const mkD  = (m,d,y) => (m&&d>=1&&d<=31) ? `${y||yr}-${pad2(m)}-${pad2(d)}` : null;
-            const MON  = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+            const MO={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
+                      may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,
+                      sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+            // toMoFirstWord: uses ONLY the first alpha word — "MAR |} |" → "mar" ✓, "Mary ) ol" → "mary" ✗
+            const toMoFW  = s=>{const w=((s||'').match(/[A-Za-z]+/g)||[]);return w.length?MO[w[0].toLowerCase()]||0:0;};
+            const toMo    = s=>{const k=(s||'').toLowerCase().replace(/[^a-z]/g,'');return MO[k]||MO[k.slice(0,3)]||0;};
+            const pad2    = n=>String(n).padStart(2,'0');
+            const mkD     = (m,d,y)=>(m&&d>=1&&d<=31)?`${y||yr}-${pad2(m)}-${pad2(d)}`:null;
+            const MON     = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
 
             // ── TIME ──
-            const tm = full.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
-            if (tm) {
-                let h=+tm[1];
-                if(tm[3].toUpperCase()==='PM'&&h!==12)h+=12;
-                if(tm[3].toUpperCase()==='AM'&&h===12)h=0;
-                out.time=`${pad2(h)}:${tm[2]}`;
-            }
+            const tm=full.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
+            if(tm){let h=+tm[1];if(tm[3].toUpperCase()==='PM'&&h!==12)h+=12;if(tm[3].toUpperCase()==='AM'&&h===12)h=0;out.time=`${pad2(h)}:${tm[2]}`;}
 
-            // ── DATE ──
-            // Phase 1: corpus of clean joined lines
+            // ── DATE Phase 1: corpus-based (handles Cinemark-style "Tuesday, March 10, 2026") ──
             const corpus=[...lines];
             for(let i=0;i<lines.length-1;i++) corpus.push(lines[i]+' '+lines[i+1]);
             for(let i=0;i<lines.length-2;i++) corpus.push(lines[i]+' '+lines[i+1]+' '+lines[i+2]);
@@ -2959,79 +2977,65 @@
                 m=src.match(new RegExp('(\\d{1,2})[.\\s]+('+MON+')(?!\\w)','i'));
                 if(m){const d=mkD(toMo(m[2]),+m[1]);if(d){out.date=d;break;}}
             }
-            // Phase 2: Harkins stacked-line fallback
-            // "MAR" is on its own line; "19" may be garbled on the SAME line as MAR (e.g. "MAR |} | - S")
-            // or on a nearby line. Use EXACT month match to avoid "Mary", "march" in movie titles, etc.
-            if (!out.date) {
+
+            // ── DATE Phase 2: Harkins stacked-line ("MAR" line, then day nearby) ──
+            // Uses first-word match so "MAR |} | - S" → month 3, but "Mary ) ol" → 0
+            if(!out.date){
+                const SKIP_DAY=/\b(CINE|XL|PG|Matinee|Arrowhead|Cinemark|AMC|Regal|Harkins|Alamo|Fountains|Add to|Wallet|Auditorium|Confirmation|Standard|Luxury|Format)\b/i;
                 for(let i=0;i<lines.length;i++){
-                    // Must be a line that IS essentially just a month abbreviation/name
-                    const mo = toMoExact(lines[i]);
+                    const mo=toMoFW(lines[i]);
                     if(!mo) continue;
-
-                    // Try extracting day from the SAME line first (Harkins puts day on same line, OCR adds noise)
-                    // e.g. "MAR |} | - S"  →  strip non-digits → could be empty if OCR garbled it
-                    // Also try noise-stripped version: keep only digits
-                    const sameLine = lines[i].replace(/[^0-9]/g,'');
-                    if(sameLine.length>=1&&sameLine.length<=2){
-                        const d=mkD(mo,+sameLine);if(d){out.date=d;break;}
-                    }
-
-                    // Try the next 6 lines for a clean day number
-                    // But SKIP lines that clearly belong to theater/seat/movie content
-                    const SKIP_DAY = /\b(CINE|XL|PG|Matinee|Arrowhead|Cinemark|AMC|Regal|Harkins|Alamo|Fountains|Add to|Wallet)\b/i;
-                    for(let j=i+1;j<=Math.min(i+6,lines.length-1);j++){
+                    // Ensure this line isn't a movie title / known junk
+                    if(SKIP_DAY.test(lines[i])) continue;
+                    // Word count guard: a pure month line has ≤4 words
+                    if((lines[i].match(/[A-Za-z]+/g)||[]).length > 4) continue;
+                    console.log('[OCR date] Month line:', lines[i], '→ mo='+mo);
+                    // Try same line (OCR noise garbles the day onto the same line)
+                    const sameDigits=lines[i].replace(/[^0-9]/g,'');
+                    if(sameDigits.length>=1&&sameDigits.length<=2){const d=mkD(mo,+sameDigits);if(d){out.date=d;break;}}
+                    // Try next 8 lines for a standalone number
+                    for(let j=i+1;j<=Math.min(i+8,lines.length-1);j++){
                         if(SKIP_DAY.test(lines[j])) continue;
-                        const cleaned=lines[j].replace(/[^0-9]/g,'');
-                        if(cleaned.length>=1&&cleaned.length<=2){
-                            const n=+cleaned;
-                            if(n>=1&&n<=31){
-                                const d=mkD(mo,n);if(d){out.date=d;break;}
-                            }
+                        const digits=lines[j].replace(/[^0-9]/g,'');
+                        if(digits.length>=1&&digits.length<=2){
+                            const n=+digits;
+                            if(n>=1&&n<=31){const d=mkD(mo,n);if(d){out.date=d;console.log('[OCR date] Day from line['+j+']',lines[j],'→',n);break;}}
                         }
                     }
                     if(out.date) break;
                 }
             }
 
-            // ── SEATS ── handles F-5, F5, F 5
-            const SEAT_PAT = /\b([A-HJ-Z]-?\d{1,3})\b/g;
-            const seatLineIdx=lines.findIndex(l=>/\bseats?\b/i.test(l));
-            const seatSearch=seatLineIdx>=0 ? lines[seatLineIdx]+' '+(lines[seatLineIdx+1]||'') : full;
-            const seatMatches=[...seatSearch.matchAll(SEAT_PAT)].map(m=>m[1]).filter(s=>!/^(PG|2D|3D|XL|ID)/i.test(s));
-            if(seatMatches.length>0) out.seats=seatMatches.join(', ');
-            if(!out.seats){
-                for(const line of lines){
-                    const sm=[...line.matchAll(SEAT_PAT)].map(m=>m[1]).filter(s=>!/^(PG|2D|3D|XL|ID)/i.test(s));
-                    if(sm.length>=2){out.seats=sm.join(', ');break;}
-                }
-            }
+            // ── SEATS — handles F-5, F5, F 5 ──
+            const SEAT_RE=/\b([A-HJ-Z]-?\s?\d{1,3})\b/g;
+            const NO_SEAT=/^(PG|2D|3D|XL|ID)/i;
+            const seatIdx=lines.findIndex(l=>/\bseats?\b/i.test(l));
+            const seatSrc=seatIdx>=0?lines[seatIdx]+' '+(lines[seatIdx+1]||''):full;
+            let sm=[...seatSrc.matchAll(SEAT_RE)].map(m=>m[1].replace(/\s/g,'')).filter(s=>!NO_SEAT.test(s));
+            if(!sm.length) sm=[...full.matchAll(SEAT_RE)].map(m=>m[1].replace(/\s/g,'')).filter(s=>!NO_SEAT.test(s));
+            // Deduplicate
+            out.seats=[...new Set(sm)].join(', ');
 
-            // ── THEATER ── strip trailing time, address numbers
-            const isJunk=l=>
-                /https?:\/\/|\.com\b|\.net\b|\.org\b/i.test(l)||
-                /[+()]{2,}/.test(l)||/^\s*[\(\[]/.test(l)||
-                /\b\d{5,}\b/.test(l)||l.length<4||l.length>70;
+            // ── THEATER ──
+            const isJunk=l=>/https?:\/\/|\.com\b|\.net\b|\.org\b/i.test(l)||/[+()]{2,}/.test(l)||/^\s*[\(\[]/.test(l)||/\b\d{5,}\b/.test(l)||l.length<4||l.length>70;
             const CHAIN=/\b(cinemark|amc|regal|harkins|alamo|megaplex|cinepolis|ipic|imax|arrowhead)\b/i;
             const SKIP_TH=/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|CINE)\b/i;
             const MONRE=new RegExp(MON,'i');
-            const TIME_SUFFIX=/\s*\d{1,2}:\d{2}\s*(?:AM|PM)\s*$/i;
+            const TSTRIP=/\s*\d{1,2}:\d{2}\s*(?:AM|PM)\s*$/i;
             for(const line of lines){
-                if(isJunk(line)) continue;
-                if(CHAIN.test(line)){
-                    out.theater=line.replace(TIME_SUFFIX,'').replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();
-                    break;
-                }
+                if(isJunk(line))continue;
+                if(CHAIN.test(line)){out.theater=line.replace(TSTRIP,'').replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();break;}
             }
             if(!out.theater){
                 for(const line of lines){
-                    if(isJunk(line)||/^\d/.test(line)) continue;
-                    if(SKIP_TH.test(line)||MONRE.test(line)) continue;
-                    if(/\b(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line)) continue;
-                    if(/^[A-Z]/.test(line)){out.theater=line.replace(TIME_SUFFIX,'').replace(/,.*$/,'').trim();break;}
+                    if(isJunk(line)||/^\d/.test(line))continue;
+                    if(SKIP_TH.test(line)||MONRE.test(line))continue;
+                    if(/\b(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line))continue;
+                    if(/^[A-Z]/.test(line)){out.theater=line.replace(TSTRIP,'').replace(/,.*$/,'').trim();break;}
                 }
             }
 
-            console.log('[OCR result]', out);
+            console.log('[OCR result]',out);
             return out;
         }
 
@@ -3107,10 +3111,10 @@
                         (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='block';})();
                         
                         const cropperImg = document.getElementById('ticket-cropper-img');
-                        if (cropperImg) { cropperImg.src = ev.target.result; cropperImg.style.display = 'block'; cropperImg.style.maxWidth = '100%';
+                        if (cropperImg) { cropperImg.src = ev.target.result; cropperImg.style.display='block'; cropperImg.style.maxWidth='100%';
                             if(cropperInstance) cropperInstance.destroy();
-                            cropperInstance = new Cropper(cropperImg, {aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
-                        } else { showToast("No barcode detected — fill details manually.", false); }
+                            cropperInstance = new Cropper(cropperImg,{aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
+                        } else { showToast("No barcode detected — fill details manually.",false); }
                         showToast("Could not auto-detect barcode. Please box it manually.", true);
                     }
 
@@ -3127,15 +3131,13 @@
                     // ── Step 2: Extract ticket details ──
                     try {
                         let data;
-                        document.getElementById('ocr-status-bar').textContent = '🧠 Analyzing text...';
+                        document.getElementById('ocr-status-bar').textContent = '🔍 Reading your ticket...';
                         
                         data = await analyzeTicketWithOCR(imgEl);
 
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
-                            // If date not found, default to today so user just adjusts it
-                            const dateVal = data.date || new Date().toISOString().slice(0,10);
-                            document.getElementById('ticket-date').value = dateVal;
+                            document.getElementById('ticket-date').value = data.date || new Date().toISOString().slice(0,10);
                             if (data.time)    document.getElementById('ticket-time').value    = data.time;
                             if (data.seats)   document.getElementById('ticket-seats').value   = data.seats;
 
