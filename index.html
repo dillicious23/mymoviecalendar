@@ -1859,6 +1859,15 @@
                         <input type="file" id="letterboxd-upload" accept=".csv">
                     </div>
                 </div>
+
+                <div style="background: #222; padding: 1.5rem; border-radius: 10px; margin-top: 1.5rem;">
+                    <h3 style="margin-top:0;">AI Scanner Settings</h3>
+                    <p style="font-size:0.85rem; color:#aaa;">Enter your Gemini API Key to enable smart ticket scanning. This is saved securely on your local device.</p>
+                    <div class="modal-input-group">
+                        <input type="password" id="gemini-api-key-input" placeholder="AIzaSy...">
+                    </div>
+                    <button class="btn btn-outline" style="width:100%; margin-top: 0.5rem;" onclick="saveApiKey()">Save API Key</button>
+                </div>
             </div>
         </div>
 
@@ -2152,6 +2161,7 @@
         let currentViewedMovie = null; // {id, title, posterPath}
         let currentPlanTicketId = null; 
         let scannedQrBase64 = null; // stores auto-detected QR crop
+        let cropperInstance = null; // FIXED: Added missing variable to prevent Uncaught ReferenceError
 
         let pendingTokenResolve = null;
         let pendingTokenReject = null;
@@ -2773,6 +2783,12 @@
             return `${hours}:${minutes} ${ampm}`;
         }
         
+        function saveApiKey() {
+            const key = document.getElementById('gemini-api-key-input').value.trim();
+            localStorage.setItem('gemini_api_key', key);
+            showToast('API Key saved to device! 🔐');
+        }
+
         window.enlargeQR = function(src) {
             document.getElementById('qr-enlarge-img').src = src;
             openModal('qr-enlarge-modal');
@@ -2820,7 +2836,10 @@
 
         // ── TICKET: AI Extraction (Primary Method) ──
         async function analyzeTicketWithGemini(base64Image) {
-            const apiKey = ""; // Canvas execution environment injects the key
+            const apiKey = localStorage.getItem('gemini_api_key') || ""; 
+            if (!apiKey) {
+                throw new Error("No API key found. Please enter it in your Profile tab.");
+            }
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
             const [header, b64Data] = base64Image.split(',');
@@ -2832,7 +2851,17 @@
                 contents: [{
                     role: "user",
                     parts: [
-                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.` },
+                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.
+                        
+                        CRITICAL FORMATTING RULES:
+                        - Harkins theaters often stack the date (e.g., 'MAR' on one line, '19' on the next). Combine them.
+                        - Cinemark theaters often write the date linearly (e.g. 'Tuesday, March 10, 2026'). 
+                        
+                        Extract:
+                        1. 'theater': Name of the cinema (e.g. 'Arrowhead Fountains 18' or 'Cinemark Mesa 16'). DO NOT put dates, days of the week, or times in this field.
+                        2. 'date': Convert to YYYY-MM-DD. If year is missing (like 'MAR 19'), use ${currentYear}.
+                        3. 'time': Convert to 24-hour HH:MM format (e.g. '14:00' for 2:00 PM).
+                        4. 'seats': Exact seat numbers. Look for 'F-5, F-6' or 'F7, F8'. Ignore ticket counts like '2 Tickets'.` },
                         { inlineData: { mimeType: mimeType, data: b64Data } }
                     ]
                 }],
@@ -2918,8 +2947,8 @@
             
             // Format 1: Tuesday, March 10, 2026
             const dateMatch1 = full.match(new RegExp(`\\b(${monRegex})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d{2})`, 'i'));
-            // Format 2: MAR 19 (or MAR. 19)
-            const dateMatch2 = full.match(new RegExp(`\\b(${monRegex})[\\s.,]+(\\d{1,2})\\b`, 'i'));
+            // Format 2: MAR \n 19 (handles newlines and spaces natively for Harkins stacked dates)
+            const dateMatch2 = text.replace(/\n/g, ' ').match(new RegExp(`\\b(${monRegex})[\\s.,|]+(\\d{1,2})\\b`, 'i'));
             // Format 3: 19 MAR
             const dateMatch3 = full.match(new RegExp(`\\b(\\d{1,2})[\\s.,]+(${monRegex})\\b`, 'i'));
 
@@ -2949,7 +2978,7 @@
 
             // 4. Theater Extraction
             for (let line of lines) {
-                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead Fountains|Cinema|Theatre)[\w\s]*\b/i.test(line)) {
+                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead|Fountains|Cinema|Theatre)\b/i.test(line)) {
                     // Stop at the address part
                     result.theater = line.replace(/\b\d{4,}\s+[A-Z].*/i, '').trim();
                     break;
@@ -3492,6 +3521,11 @@
             if (savedWL) watchlist = JSON.parse(savedWL);
             const savedD = localStorage.getItem('movieDiary');
             if (savedD) diary = JSON.parse(savedD);
+            
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if (savedKey && document.getElementById('gemini-api-key-input')) {
+                document.getElementById('gemini-api-key-input').value = savedKey;
+            }
         }
 
         function saveData() {
