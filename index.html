@@ -49,6 +49,53 @@
 
         .movies-section { width: 100%; min-width: 0; }
 
+        /* Upcoming Box Feature */
+        .upcoming-box {
+            background: linear-gradient(135deg, #1e1e1e, #2b2b2b);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 4px 10px rgba(229, 9, 20, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .upcoming-box:hover { transform: translateY(-3px); }
+        .upcoming-box img {
+            width: 55px;
+            border-radius: 6px;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            background: #333;
+        }
+        .upcoming-info { flex: 1; min-width: 0; }
+        .upcoming-info h4 { margin: 0 0 0.2rem 0; color: #fff; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .upcoming-info p { margin: 0; color: #aaa; font-size: 0.8rem; }
+        .upcoming-badge {
+            background: var(--primary);
+            color: white;
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: inline-block;
+        }
+
+        /* Rerelease Section Feature */
+        .rerelease-section { margin-bottom: 1.5rem; }
+        .rerelease-header { margin: 0 0 0.8rem 0; font-size: 1.1rem; color: #fff; display: flex; align-items: center; gap: 8px; font-weight: bold; }
+        .rerelease-track { display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 0.5rem; }
+        .rerelease-track::-webkit-scrollbar { display: none; }
+        .rerelease-card { flex: 0 0 100px; max-width: 100px; min-width: 0; background: #1e1e1e; border-radius: 8px; padding: 0.4rem; text-align: center; scroll-snap-align: start; border: 1px solid #333; display: flex; flex-direction: column; overflow: hidden; }
+        .rerelease-card img { width: 100%; height: 135px; border-radius: 4px; object-fit: cover; cursor: pointer; background: #333; margin-bottom: auto; display: block; }
+        .rerelease-card h4 { margin: 0.4rem 0 0.1rem 0; font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+        .rerelease-card p { margin: 0 0 0.2rem 0; font-size: 0.6rem; color: var(--primary); font-weight: bold; text-transform: uppercase;}
+
         /* Search & Navigation */
         .search-container { position: relative; margin-bottom: 1.5rem; display: flex; }
         #search-input {
@@ -121,6 +168,7 @@
         .btn:disabled { background-color: #555 !important; color: #aaa !important; cursor: not-allowed; }
         .btn-add { background-color: var(--primary); padding: 0.5rem 0.2rem; font-size: 0.75rem; white-space: nowrap; overflow: hidden;}
         .btn-watched { background-color: #444; font-size: 1.1rem; padding: 0.2rem; flex: 0 0 35px;}
+        .btn-tickets { background-color: #007bff; width: 100%; margin-top: 1rem; padding: 0.8rem; display: flex; justify-content: center; align-items: center; gap: 8px;}
         .google-btn { background-color: var(--google-blue); width: 100%; }
         .sync-btn { background-color: var(--success-green); width: 100%; margin-top: 1rem; padding: 0.8rem;}
 
@@ -336,6 +384,16 @@
 
     <main class="container">
         <section class="movies-section">
+            
+            <!-- UPCOMING MOVIE BOX -->
+            <div id="upcoming-movie-box" style="display: none;"></div>
+
+            <!-- RERELEASE TRACK -->
+            <div id="rerelease-section" class="rerelease-section" style="display: none;">
+                <h3 class="rerelease-header">🎟️ Classic Rereleases</h3>
+                <div id="rerelease-track" class="rerelease-track"></div>
+            </div>
+
             <div class="search-container">
                 <input type="text" id="search-input" placeholder="Search for any movie...">
                 <button id="search-clear-btn" title="Clear search">&times;</button>
@@ -378,17 +436,14 @@
         </div>
 
         <div class="drawer-content">
-            <!-- TAB 1: WATCHLIST -->
             <div id="tab-watchlist" class="tab-content active">
                 <ul id="watchlist-container" class="list-container"></ul>
             </div>
             
-            <!-- TAB 2: DIARY -->
             <div id="tab-diary" class="tab-content">
                 <div id="diary-container"></div>
             </div>
             
-            <!-- TAB 3: PROFILE (Spotify Wrapped Vibe) -->
             <div id="tab-profile" class="tab-content">
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.8rem;">
@@ -460,7 +515,6 @@
             </div>
         </div>
 
-        <!-- Sticky Footer for Watchlist Syncing -->
         <div class="drawer-footer" id="drawer-footer-sync">
             <div id="auth-section">
                 <button id="auth-btn" class="btn google-btn">Connect Google Calendar</button>
@@ -490,6 +544,7 @@
             <p id="modal-overview" style="font-size: 0.95rem; line-height: 1.4; color: #ddd;"></p>
             <h4 style="margin-bottom: 0.5rem;">Top Cast</h4>
             <p id="modal-cast" style="font-size: 0.9rem; color: #aaa;"></p>
+            <button id="modal-showtimes-btn" class="btn btn-tickets" style="margin-top: 1.5rem;">🎟️ Find Local Showtimes</button>
         </div>
     </div>
 
@@ -688,7 +743,9 @@
         ['month-picker-top', 'month-picker-bottom'].forEach(id => {
             document.getElementById(id).addEventListener('change', (e) => {
                 const [year, month] = e.target.value.split('-');
-                currentViewDate = new Date(year, parseInt(month) - 1, 1); fetchMoviesForCurrentMonth();
+                currentViewDate = new Date(year, parseInt(month) - 1, 1); 
+                fetchMoviesForCurrentMonth();
+                fetchRereleases();
             });
         });
 
@@ -728,10 +785,19 @@
             } else { clearSearch(); }
         });
         clearBtn.addEventListener('click', clearSearch);
-        function clearSearch() { searchInput.value = ''; clearBtn.style.display = 'none'; document.getElementById('top-nav').style.display = 'flex'; document.getElementById('bottom-nav').style.display = 'flex'; fetchMoviesForCurrentMonth(); }
+        
+        function clearSearch() { 
+            searchInput.value = ''; 
+            clearBtn.style.display = 'none'; 
+            document.getElementById('top-nav').style.display = 'flex'; 
+            document.getElementById('bottom-nav').style.display = 'flex'; 
+            fetchMoviesForCurrentMonth(); 
+            fetchRereleases(); 
+        }
 
         async function searchMovies(query) {
             const container = document.getElementById('movies-container'); container.innerHTML = '<div class="loading">Searching movies...</div>';
+            document.getElementById('rerelease-section').style.display = 'none'; // Hide rereleases while searching
             try {
                 const url = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(query)}&page=1&include_adult=false`;
                 const response = await fetch(url); const data = await response.json();
@@ -774,10 +840,20 @@
         }
 
         ['prev-month-btn', 'prev-month-btn-bottom'].forEach(id => {
-            document.getElementById(id).addEventListener('click', () => { currentViewDate.setMonth(currentViewDate.getMonth() - 1); fetchMoviesForCurrentMonth(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById(id).addEventListener('click', () => { 
+                currentViewDate.setMonth(currentViewDate.getMonth() - 1); 
+                fetchMoviesForCurrentMonth(); 
+                fetchRereleases();
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            });
         });
         ['next-month-btn', 'next-month-btn-bottom'].forEach(id => {
-            document.getElementById(id).addEventListener('click', () => { currentViewDate.setMonth(currentViewDate.getMonth() + 1); fetchMoviesForCurrentMonth(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById(id).addEventListener('click', () => { 
+                currentViewDate.setMonth(currentViewDate.getMonth() + 1); 
+                fetchMoviesForCurrentMonth(); 
+                fetchRereleases();
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            });
         });
 
         // --- Fetch Details Modal ---
@@ -796,8 +872,129 @@
                 const cast = movie.credits && movie.credits.cast ? movie.credits.cast.slice(0, 5).map(c => c.name).join(', ') : '';
                 document.getElementById('modal-cast').innerText = cast || 'No cast data.';
 
+                document.getElementById('modal-showtimes-btn').onclick = () => {
+                    const query = encodeURIComponent(`${movie.title} movie showtimes near me`);
+                    window.open(`https://www.google.com/search?q=${query}`, '_blank');
+                };
+
                 openModal('movie-modal');
             } catch (err) { showToast('Error loading details', true); }
+        }
+
+        // ==========================================
+        // RERELEASE FEATURE (Synced to Month Navigation)
+        // ==========================================
+        async function fetchRereleases() {
+            try {
+                const year = currentViewDate.getFullYear(); 
+                const month = currentViewDate.getMonth(); 
+                const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+                const endStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`;
+                
+                const olderDate = new Date();
+                olderDate.setFullYear(olderDate.getFullYear() - 3); // Must be originally released at least 3 years ago
+                const pastDate = olderDate.toISOString().split('T')[0];
+
+                // Discover older movies with a theatrical release in the selected month
+                const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=US&with_release_type=2|3|4&release_date.gte=${startStr}&release_date.lte=${endStr}&primary_release_date.lte=${pastDate}&sort_by=popularity.desc`;
+                
+                const response = await fetch(url); 
+                const data = await response.json();
+                
+                const rereleases = data.results.filter(m => m.poster_path).slice(0, 10);
+                const section = document.getElementById('rerelease-section');
+                const track = document.getElementById('rerelease-track');
+                
+                if (rereleases.length > 0) {
+                    section.style.display = 'block';
+                    track.innerHTML = '';
+                    
+                    for (const m of rereleases) {
+                        let displayDate = "This Month";
+                        let isoDate = m.release_date || ""; // Fallback
+                        // Fetch exact rerelease date
+                        try {
+                            const rdRes = await fetch(`https://api.themoviedb.org/3/movie/${m.id}/release_dates?api_key=${TMDB_API_KEY}`);
+                            const rdData = await rdRes.json();
+                            const usRelease = rdData.results?.find(r => r.iso_3166_1 === 'US');
+                            if (usRelease) {
+                                const specificRelease = usRelease.release_dates.find(rd => {
+                                    const d = new Date(rd.release_date);
+                                    const s = new Date(startStr); const e = new Date(endStr);
+                                    return d >= s && d <= e && [2,3,4].includes(rd.type);
+                                });
+                                if (specificRelease) {
+                                    const dateObj = new Date(specificRelease.release_date);
+                                    displayDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+                                    isoDate = specificRelease.release_date.split('T')[0];
+                                }
+                            }
+                        } catch(e){}
+
+                        const imgUrl = `https://image.tmdb.org/t/p/w200${m.poster_path}`;
+                        const safeTitle = m.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        const isInWatchlist = watchlist.some(w => String(w.id) === String(m.id));
+                        const isLogged = diary.some(d => String(d.id) === String(m.id));
+                        let btnText = '+ Add'; let btnDisabled = '';
+                        if (isLogged) { btnText = 'Logged'; btnDisabled = 'disabled'; }
+                        else if (isInWatchlist) { btnText = 'Added'; btnDisabled = 'disabled'; }
+
+                        const card = document.createElement('div');
+                        card.className = 'rerelease-card';
+                        card.innerHTML = `
+                            <img src="${imgUrl}" alt="${m.title}" onclick="fetchMovieDetails('${m.id}')">
+                            <h4 title="${m.title}">${m.title}</h4>
+                            <p>${displayDate}</p>
+                            <button id="add-btn-${m.id}" class="btn btn-add" style="width:100%; padding:0.3rem 0; font-size:0.7rem; margin-top:0.2rem;" ${btnDisabled} onclick="addToWatchlist('${m.id}', '${safeTitle}', '${isoDate}', '${m.poster_path}')">${btnText}</button>
+                        `;
+                        track.appendChild(card);
+                    }
+                } else {
+                    section.style.display = 'none';
+                }
+            } catch (err) { console.error('Error fetching rereleases', err); }
+        }
+
+        // ==========================================
+        // UPCOMING MOVIE FEATURE
+        // ==========================================
+        function updateUpcomingMovie() {
+            const upcomingBox = document.getElementById('upcoming-movie-box');
+            if (!watchlist || watchlist.length === 0) {
+                upcomingBox.style.display = 'none';
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            const upcoming = watchlist.filter(m => {
+                if (!m.releaseDate) return false;
+                const relDate = new Date(m.releaseDate);
+                // Adjust for timezone differences
+                relDate.setMinutes(relDate.getMinutes() + relDate.getTimezoneOffset());
+                return relDate >= today;
+            }).sort((a, b) => new Date(a.releaseDate) - new Date(b.releaseDate));
+
+            if (upcoming.length > 0) {
+                const nextMovie = upcoming[0];
+                const imgUrl = (nextMovie.posterPath && nextMovie.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${nextMovie.posterPath}` : PLACEHOLDER_IMG;
+                
+                upcomingBox.style.display = 'flex';
+                upcomingBox.className = 'upcoming-box';
+                upcomingBox.onclick = () => fetchMovieDetails(nextMovie.id);
+                
+                upcomingBox.innerHTML = `
+                    <img src="${imgUrl}" alt="poster">
+                    <div class="upcoming-info">
+                        <span class="upcoming-badge">Up Next in Watchlist</span>
+                        <h4>${nextMovie.title}</h4>
+                        <p>Releasing: ${formatDateMDY(nextMovie.releaseDate)}</p>
+                    </div>
+                `;
+            } else {
+                upcomingBox.style.display = 'none';
+            }
         }
 
         // ==========================================
@@ -892,6 +1089,8 @@
                     currentGrid.appendChild(card);
                 });
             }
+            
+            updateUpcomingMovie();
         }
 
         window.removeFromWatchlist = function(id) {
@@ -1218,9 +1417,10 @@
                             });
                             showToast('Opening Share Menu... 📸');
                         } catch (err) {
-                            if (err.name !== 'AbortError') downloadFallback(blob, year);
+                            if (err.name !== 'AbortError') downloadFallback(blob, year); // User didn't just cancel out
                         }
                     } else {
+                        // Fallback for desktops/browsers that don't support file sharing natively
                         downloadFallback(blob, year);
                     }
                     shareBtn.innerHTML = originalText;
@@ -1349,10 +1549,9 @@
             checkSavedAuth(); 
             updateListsUI();
             fetchMoviesForCurrentMonth(); 
+            fetchRereleases(); 
             initGoogleAuth();
         };
     </script>
 </body>
 </html>
-
-
