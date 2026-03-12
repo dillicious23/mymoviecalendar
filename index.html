@@ -2794,46 +2794,15 @@
             openModal('qr-enlarge-modal');
         }
         
-        // ── TICKET: Barcode detection — BarcodeDetector first (native Aztec), then ZXing ──
+        // ── TICKET: ZXing BrowserMultiFormatReader (QR, Aztec, DataMatrix, PDF417, barcodes) ──
         async function detectBarcodeFromImage(imgEl) {
-            // 1. Try native BarcodeDetector (Chrome/Android — best Aztec support)
-            if ('BarcodeDetector' in window) {
-                try {
-                    const formats = ['aztec','qr_code','data_matrix','pdf417','code_128'];
-                    const detector = new BarcodeDetector({ formats });
-                    const results = await detector.detect(imgEl);
-                    if (results.length > 0) {
-                        const b = results[0].boundingBox;
-                        return {
-                            resultPoints: [
-                                { x: b.x, y: b.y },
-                                { x: b.x + b.width, y: b.y },
-                                { x: b.x + b.width, y: b.y + b.height },
-                                { x: b.x, y: b.y + b.height }
-                            ],
-                            text: results[0].rawValue
-                        };
-                    }
-                } catch(e) {}
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+            try {
+                // decodeFromImageElement handles all formats including Aztec internally
+                return await codeReader.decodeFromImageElement(imgEl);
+            } catch(e) {
+                return null;
             }
-            // 2. ZXing fallback
-            if (window.ZXing) {
-                try {
-                    const r = await new ZXing.BrowserMultiFormatReader().decodeFromImageElement(imgEl);
-                    if (r) return r;
-                } catch(e) {}
-                // 3. ZXing at 2x scale (helps dense Aztec codes)
-                try {
-                    const scale = document.createElement('canvas');
-                    scale.width  = imgEl.naturalWidth  * 2;
-                    scale.height = imgEl.naturalHeight * 2;
-                    scale.getContext('2d').drawImage(imgEl, 0, 0, scale.width, scale.height);
-                    const scaled = new Image();
-                    await new Promise(res => { scaled.onload = res; scaled.src = scale.toDataURL(); });
-                    return await new ZXing.BrowserMultiFormatReader().decodeFromImageElement(scaled);
-                } catch(e) {}
-            }
-            return null;
         }
 
         // Crop the detected barcode out of the image, return base64 PNG
@@ -2937,10 +2906,9 @@
             }
         }
 
-        // ── TICKET: OCR with Tesseract.js (Offline Fallback) ──
+        // ── TICKET: OCR with Tesseract.js (Offline Fallback for robust parsing) ──
         async function analyzeTicketWithOCR(imgEl) {
-            const yr = new Date().getFullYear();
-            const statusEl = document.getElementById('ocr-status-bar');
+            const currentYear = new Date().getFullYear();
 
             const canvas = document.createElement('canvas');
             canvas.width  = imgEl.naturalWidth  || imgEl.width;
@@ -2949,111 +2917,89 @@
 
             const worker = await Tesseract.createWorker('eng', 1, {
                 logger: m => {
-                    if (m.status === 'recognizing text' && statusEl) {
-                        statusEl.textContent = `📖 Reading text... ${Math.round(m.progress*100)}%`;
+                    if (m.status === 'recognizing text') {
+                        const btn = document.getElementById('save-ticket-btn');
+                        if (btn) btn.innerText = `✨ Reading text... ${Math.round(m.progress*100)}%`;
                     }
                 }
             });
             const { data: { text } } = await worker.recognize(canvas);
             await worker.terminate();
 
-            console.log('[OCR raw]', text);
-
-            const raw   = text;
-            const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
             const full  = lines.join(' ');
             const result = { theater: '', date: '', time: '', seats: '' };
 
-            // ── Month map ──
-            const MO = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,
-                        may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,
-                        sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
-            const toMo = s => { const k=(s||'').toLowerCase().replace(/[^a-z]/g,''); return MO[k]||MO[k.slice(0,3)]||0; };
-            const pad2 = n => String(n).padStart(2,'0');
-            const mkDate = (m,d,y) => m&&d>=1&&d<=31 ? `${y||yr}-${pad2(m)}-${pad2(d)}` : null;
-            const MON_RE = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-            const DAY_RE = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/i;
-
-            // ── 1. TIME ──
-            const tm = full.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
-            if (tm) {
-                let h = +tm[1];
-                if (tm[3].toUpperCase()==='PM' && h!==12) h+=12;
-                if (tm[3].toUpperCase()==='AM' && h===12) h=0;
-                result.time = `${pad2(h)}:${tm[2]}`;
+            // 1. Time Extraction
+            const timeMatch = full.match(/\b((?:1[0-2]|0?[1-9]):[0-5][0-9])\s*(AM|PM|am|pm)?\b/i);
+            if (timeMatch) {
+                let hr = parseInt(timeMatch[1].split(':')[0], 10);
+                let min = timeMatch[1].split(':')[1];
+                let ampm = (timeMatch[2] || "").toUpperCase();
+                if (ampm === "PM" && hr < 12) hr += 12;
+                if (ampm === "AM" && hr === 12) hr = 0;
+                result.time = `${hr.toString().padStart(2, '0')}:${min}`;
             }
 
-            // ── 2. DATE ──
-            // Build a multi-line corpus: each line, adjacent pairs, triple, and full joined text
-            const corpus = [...lines];
-            for (let i=0;i<lines.length-1;i++) corpus.push(lines[i]+' '+lines[i+1]);
-            for (let i=0;i<lines.length-2;i++) corpus.push(lines[i]+' '+lines[i+1]+' '+lines[i+2]);
-            corpus.push(full);
+            // 2. Date Extraction (Robust against newline splits)
+            const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12, january:1, february:2, march:3, april:4, august:8, september:9, october:10, november:11, december:12 };
+            const monRegex = Object.keys(months).join('|');
+            
+            // Format 1: Tuesday, March 10, 2026
+            const dateMatch1 = full.match(new RegExp(`\\b(${monRegex})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d{2})`, 'i'));
+            // Format 2: MAR \n 19 (handles newlines and spaces natively for Harkins stacked dates)
+            const dateMatch2 = text.replace(/\n/g, ' ').match(new RegExp(`\\b(${monRegex})[\\s.,|]+(\\d{1,2})\\b`, 'i'));
+            // Format 3: 19 MAR
+            const dateMatch3 = full.match(new RegExp(`\\b(\\d{1,2})[\\s.,]+(${monRegex})\\b`, 'i'));
 
-            for (const src of corpus) {
-                let m;
-                // "Tuesday, March 10, 2026" or "March 10, 2026"
-                m = src.match(new RegExp('(?:'+DAY_RE.source.slice(2,-2)+',?\\s+)?('+MON_RE+')[\\s,]+(\\d{1,2})(?:st|nd|rd|th)?[,\\s]+(20\\d{2})','i'));
-                if (m) { const d=mkDate(toMo(m[1]),+m[2],m[3]); if(d){result.date=d;break;} }
-                // "March 10" / "MAR 19" (no year — use current year)
-                m = src.match(new RegExp('('+MON_RE+')[.\\s,]+(\\d{1,2})(?!\\d)','i'));
-                if (m) { const d=mkDate(toMo(m[1]),+m[2]); if(d){result.date=d;break;} }
-                // "10 March"
-                m = src.match(new RegExp('(\\d{1,2})[.\\s]+('+MON_RE+')(?!\\w)','i'));
-                if (m) { const d=mkDate(toMo(m[2]),+m[1]); if(d){result.date=d;break;} }
+            if (dateMatch1) {
+                let m = months[dateMatch1[1].toLowerCase()];
+                result.date = `${dateMatch1[3]}-${m.toString().padStart(2, '0')}-${dateMatch1[2].padStart(2, '0')}`;
+            } else if (dateMatch2) {
+                let m = months[dateMatch2[1].toLowerCase()];
+                result.date = `${currentYear}-${m.toString().padStart(2, '0')}-${dateMatch2[2].padStart(2, '0')}`;
+            } else if (dateMatch3) {
+                let m = months[dateMatch3[2].toLowerCase()];
+                result.date = `${currentYear}-${m.toString().padStart(2, '0')}-${dateMatch3[1].padStart(2, '0')}`;
             }
 
-            // Last resort: Harkins-style "MAR\n19\nTHU" — month word on one line, lone 1-2 digit number nearby
-            if (!result.date) {
-                for (let i=0;i<lines.length;i++) {
-                    const mo = toMo(lines[i]);
-                    if (!mo) continue;
-                    for (let j=i+1;j<=Math.min(i+4,lines.length-1);j++) {
-                        const nm = lines[j].match(/^(\d{1,2})$/);
-                        if (nm) { const d=mkDate(mo,+nm[1]); if(d){result.date=d;break;} }
-                    }
-                    if (result.date) break;
+            // 3. Seat Extraction
+            const seatPattern = /\bSeats?\s*[:\-]?\s*([A-Z]-?\d{1,3}(?:[\s,]+[A-Z]-?\d{1,3})*)/i;
+            const seatMatch = full.match(seatPattern);
+            if (seatMatch) {
+                result.seats = seatMatch[1].replace(/\s+/g, ' ').trim();
+            } else {
+                // Check for raw formatting "F-5, F-6" or "F7,F8" skipping standard video formats
+                const rawSeats = full.match(/\b([A-Z]-?\d{1,3}(?:(?:\s*,\s*|\s+)[A-Z]-?\d{1,3})+)\b/);
+                if (rawSeats && !/\b(PG|AM|PM|2D|3D)\b/i.test(rawSeats[0])) {
+                    result.seats = rawSeats[1].trim();
                 }
             }
 
-            // ── 3. SEATS ──
-            // Look for explicit "Seats" label first
-            const seatLineIdx = lines.findIndex(l => /\bseats?\b/i.test(l));
-            if (seatLineIdx >= 0) {
-                // Seats might be on same line or next line
-                const candidates = [lines[seatLineIdx], (lines[seatLineIdx+1]||'')].join(' ');
-                const sm = candidates.match(/\bseats?\s*[:\-]?\s*([A-Z]-?\d{1,3}(?:[\s,]+[A-Z]-?\d{1,3})*)/i);
-                if (sm) result.seats = sm[1].replace(/\s+/g,' ').trim();
-            }
-            if (!result.seats) {
-                // Raw pattern: F7,F8 or F-5, F-6
-                const sm2 = full.match(/\b([A-Z]\d{1,3}(?:\s*[,\/]\s*[A-Z]\d{1,3})+)\b/);
-                if (sm2 && !/\b(PG|AM|PM|2D|3D|ID)\b/.test(sm2[0])) result.seats = sm2[1].trim();
-            }
-
-            // ── 4. THEATER ──
-            // Known chains — take just that line, strip address
-            const CHAIN = /\b(cinemark|amc|regal|harkins|alamo|megaplex|cinepolis|ipic|imax)\b/i;
-            const NAMED = /\barrowhead\s+fountains\b/i;
-            for (const line of lines) {
-                if (CHAIN.test(line) || NAMED.test(line)) {
-                    result.theater = line.replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();
+            // 4. Theater Extraction
+            for (let line of lines) {
+                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead|Fountains|Cinema|Theatre)\b/i.test(line)) {
+                    // Stop at the address part
+                    result.theater = line.replace(/\b\d{4,}\s+[A-Z].*/i, '').trim();
                     break;
                 }
             }
-            // Fallback: "Name ## " pattern (word + number ≤ 2 digits at end)
+
+            // Fallback for independent theaters
             if (!result.theater) {
-                const dateMo = new RegExp(MON_RE,'i');
-                for (const line of lines) {
-                    if (line.length < 4 || line.length > 55) continue;
+                for (let line of lines) {
+                    if (line.length < 5 || line.length > 40) continue;
                     if (/^\d/.test(line)) continue;
-                    if (DAY_RE.test(line) || dateMo.test(line) || /\b20\d{2}\b/.test(line)) continue;
-                    if (/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|CINE|2h|min)\b/i.test(line)) continue;
-                    if (/^[A-Z]/.test(line)) { result.theater = line; break; }
+                    if (/\b(PG|PG-13|R|G|NR|AM|PM|Auditorium|Seats?|Tickets?|Confirmation)\b/i.test(line)) continue;
+                    if (line.match(new RegExp(`\\b(${monRegex})\\b`, 'i'))) continue;
+                    
+                    if (/^[A-Z]/.test(line)) {
+                        result.theater = line;
+                        break;
+                    }
                 }
             }
 
-            console.log('[OCR result]', result);
             return result;
         }
         
@@ -3080,8 +3026,8 @@
             
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
-            document.getElementById('ticket-cropper-img').src = '';
-            document.getElementById('cropper-container').style.display = 'none';
+            (function(){var e=document.getElementById('ticket-cropper-img');if(e)e.src='';})();
+            (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
 
             currentPlanTicketId = planId;
             closeModal('movie-modal');
@@ -3121,14 +3067,27 @@
                         qrBox.classList.remove('error');
                         qrStat.textContent = '✓ QR code detected automatically';
                         qrBox.style.display = 'block';
-                        const _cc2 = document.getElementById('cropper-container'); if(_cc2) _cc2.style.display = 'none';
+                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
                     } else {
-                        // No barcode found — let user continue without QR
+                        // Fallback to manual cropper if barcode not found
                         scannedQrBase64 = null;
-                        qrBox.classList.add('error');
-                        qrStat.textContent = '⚠ No barcode found — ticket saved without scan code';
-                        qrBox.style.display = 'block';
-                        const _cc3 = document.getElementById('cropper-container'); if(_cc3) _cc3.style.display = 'none';
+                        qrBox.style.display = 'none';
+                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='block';})();
+                        
+                        const cropperImg = document.getElementById('ticket-cropper-img');
+                        if(cropperImg){cropperImg.src = ev.target.result;
+                        cropperImg.style.display = 'block';
+                        cropperImg.style.maxWidth = '100%';}
+                        
+                        if(cropperInstance) cropperInstance.destroy();
+                        cropperInstance = new Cropper(cropperImg, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.6,
+                            background: false
+                        });
+                        showToast("Could not auto-detect barcode. Please box it manually.", true);
                     }
 
                     // Resize for Gemini/OCR to keep payload small
