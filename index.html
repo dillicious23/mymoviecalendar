@@ -3037,8 +3037,8 @@
             
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
-            document.getElementById('ticket-cropper-img').src = '';
-            document.getElementById('cropper-container').style.display = 'none';
+            (function(){var e=document.getElementById('ticket-cropper-img');if(e)e.src='';})();
+            (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
 
             currentPlanTicketId = planId;
             closeModal('movie-modal');
@@ -3436,8 +3436,13 @@
                 ticketsHtmlOut = activeTickets.map(t => renderTicketCard(t, false)).join('');
                 if(archivedTickets.length > 0) {
                     ticketsHtmlOut += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #333;">
-                        <div style="color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🗂 Past Tickets</div>
-                        ${archivedTickets.map(t => renderTicketCard(t, true)).join('')}
+                        <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'; this.querySelector('.arch-arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼';"
+                             style="color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;">
+                            <span class="arch-arrow">▶</span> Past Tickets (${archivedTickets.length})
+                        </div>
+                        <div style="display:none;">
+                            ${archivedTickets.map(t => renderTicketCard(t, true)).join('')}
+                        </div>
                     </div>`;
                 }
             }
@@ -3539,8 +3544,13 @@
                 plansHtmlOut = activePlans.map(p => renderPlanCard(p, false)).join('');
                 if(archivedPlans.length > 0) {
                     plansHtmlOut += `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #333;">
-                        <div style="color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🗂 Past Movie Nights</div>
-                        ${archivedPlans.map(p => renderPlanCard(p, true)).join('')}
+                        <div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'; this.querySelector('.arch-arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼';"
+                             style="color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;">
+                            <span class="arch-arrow">▶</span> Past Movie Nights (${archivedPlans.length})
+                        </div>
+                        <div style="display:none;">
+                            ${archivedPlans.map(p => renderPlanCard(p, true)).join('')}
+                        </div>
                     </div>`;
                 }
             }
