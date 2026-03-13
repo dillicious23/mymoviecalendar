@@ -18,8 +18,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <!-- ZXing Library for Barcode Detection -->
-    <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es2015/barcode-detector.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
     
     <!-- Tesseract.js for Offline Text Scanning/Fallback -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -1678,17 +1677,6 @@
             font-size: 0.78rem; color: #f5c518; margin-bottom: 0.5rem;
             min-height: 1.1em; text-align: center; font-weight: bold;
         }
-
-        /* ── Confirmation Popup ── */
-        #confirm-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; }
-        #confirm-modal.active { display:flex; }
-        #confirm-modal .confirm-box { background:#1a1a1a; border:1px solid #333; border-radius:14px; padding:1.8rem; max-width:320px; width:90%; text-align:center; }
-        #confirm-modal .confirm-box h3 { margin:0 0 0.5rem; font-size:1.1rem; }
-        #confirm-modal .confirm-box p { color:#aaa; font-size:0.9rem; margin:0 0 1.4rem; }
-        #confirm-modal .confirm-btns { display:flex; gap:10px; justify-content:center; }
-        #confirm-modal .confirm-btns button { flex:1; padding:0.6rem; border-radius:8px; border:none; font-size:0.95rem; cursor:pointer; font-weight:600; }
-        #confirm-modal .confirm-cancel { background:#333; color:#fff; }
-        #confirm-modal .confirm-ok { background:var(--primary); color:#fff; }
     </style>
 </head>
 
@@ -2806,105 +2794,215 @@
             openModal('qr-enlarge-modal');
         }
         
-        // ── TICKET: Multi-strategy barcode detection ──
+        // ── TICKET: ZXing BrowserMultiFormatReader (QR, Aztec, DataMatrix, PDF417, barcodes) ──
         async function detectBarcodeFromImage(imgEl) {
-            const W=imgEl.naturalWidth||imgEl.width||800, H=imgEl.naturalHeight||imgEl.height||600;
-            const mc=(scale,rx=0,ry=0,rw=1,rh=1)=>{
-                const ox=Math.round(W*rx),oy=Math.round(H*ry),ow=Math.round(W*rw),oh=Math.round(H*rh);
-                const cv=document.createElement('canvas'); cv.width=Math.round(ow*scale); cv.height=Math.round(oh*scale);
-                cv.getContext('2d').drawImage(imgEl,ox,oy,ow,oh,0,0,cv.width,cv.height);
-                return{cv,ox,oy,ow,oh,scale};
-            };
-            const bin=cv=>{const o=document.createElement('canvas');o.width=cv.width;o.height=cv.height;const ctx=o.getContext('2d');ctx.drawImage(cv,0,0);const id=ctx.getImageData(0,0,o.width,o.height),d=id.data;for(let i=0;i<d.length;i+=4){const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];d[i]=d[i+1]=d[i+2]=g<128?0:255;}ctx.putImageData(id,0,0);return o;};
-            const ci=cv=>new Promise(r=>{const t=new Image();t.onload=()=>r(t);t.src=cv.toDataURL();});
-            const wrap=(text,pts,ox,oy,ow,oh,sc)=>{
-                const p=(pts||[]).map(q=>({x:ox+(q.x||0)/sc,y:oy+(q.y||0)/sc}));
-                let cx,cy,cw,ch;
-                if(p.length>=2){const xs=p.map(q=>q.x),ys=p.map(q=>q.y),pad=Math.max(W,H)*0.01;cx=Math.max(0,Math.min(...xs)-pad);cy=Math.max(0,Math.min(...ys)-pad);cw=Math.min(W,Math.max(...xs)+pad)-cx;ch=Math.min(H,Math.max(...ys)+pad)-cy;}
-                else{cx=ox;cy=oy;cw=ow;ch=oh;}
-                return{text,resultPoints:p,cropX:cx,cropY:cy,cropW:cw,cropH:ch};
-            };
-            const mr=()=>{try{const h=new Map(),f=ZXing.BarcodeFormat;h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[f.AZTEC,f.QR_CODE,f.DATA_MATRIX,f.PDF_417,f.CODE_128]);h.set(ZXing.DecodeHintType.TRY_HARDER,true);return new ZXing.BrowserMultiFormatReader(h);}catch(e){return new ZXing.BrowserMultiFormatReader();}};
-            const tz=async({cv,ox,oy,ow,oh,scale})=>{try{const t=await ci(cv);const r=await mr().decodeFromImageElement(t);return r?wrap(r.text,r.resultPoints,ox,oy,ow,oh,scale):null;}catch(e){return null;}};
-            const R=[[2,0,0,1,1],[3,0,0,.55,.55],[3,.45,0,.55,.55],[3,.2,0,.6,.55],[2,0,0,1,.5],[4,.2,0,.6,.4],[1,0,0,1,1],[1.5,0,0,1,1]];
-            if(window.BarcodeDetector){try{const det=new BarcodeDetector({formats:['aztec','qr_code','data_matrix','pdf417','code_128']});for(const [sc,rx,ry,rw,rh] of R){const i=mc(sc,rx,ry,rw,rh);for(const s of[i.cv,bin(i.cv)]){const res=await det.detect(s);if(res.length>0){console.log('[QR]',res[0].rawValue);return wrap(res[0].rawValue,res[0].cornerPoints,i.ox,i.oy,i.ow,i.oh,sc);}}}}catch(e){console.log('[BD err]',e.message);}}
-            for(const [sc,rx,ry,rw,rh] of R){const i=mc(sc,rx,ry,rw,rh);for(const cv of[i.cv,bin(i.cv)]){const r=await tz({...i,cv});if(r){console.log('[QR]',r.text);return r;}}}
-            return null;
-        }
-        function cropBarcodeFromImage(imgEl,result){
-            const{cropX,cropY,cropW,cropH}=result,side=Math.max(cropW,cropH);
-            const cv=document.createElement('canvas');cv.width=cv.height=300;
-            const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,300,300);
-            if(side>0)ctx.drawImage(imgEl,cropX,cropY,side,side,0,0,300,300);
-            return cv.toDataURL('image/png');
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+            try {
+                // decodeFromImageElement handles all formats including Aztec internally
+                return await codeReader.decodeFromImageElement(imgEl);
+            } catch(e) {
+                return null;
+            }
         }
 
-        async function analyzeTicketWithGemini(){throw new Error("ocr-only");}
-        // ── TICKET: OCR via Tesseract.js ──
-        async function analyzeTicketWithOCR(imgEl, barcodeText='') {
-            const yr=new Date().getFullYear();
-            const statusEl=document.getElementById('ocr-status-bar');
-            const W=imgEl.naturalWidth||imgEl.width||800, H=imgEl.naturalHeight||imgEl.height||600;
-            const runOCR=async cv=>{const worker=await Tesseract.createWorker('eng',1,{logger:m=>{if(m.status==='recognizing text'&&statusEl)statusEl.textContent=`📖 Reading text... ${Math.round(m.progress*100)}%`;}});try{const{data:{text}}=await worker.recognize(cv);return text;}finally{await worker.terminate();}};
-            const fullCv=document.createElement('canvas');fullCv.width=W;fullCv.height=H;fullCv.getContext('2d').drawImage(imgEl,0,0);
-            const fullText=await runOCR(fullCv);
-            console.log('[OCR raw]',fullText);
-            const topCv=document.createElement('canvas');topCv.width=W*2;topCv.height=Math.round(H*0.45)*2;
-            topCv.getContext('2d').drawImage(imgEl,0,0,W,H*0.45,0,0,topCv.width,topCv.height);
-            const topText=await runOCR(topCv);
-            console.log('[OCR top]',topText);
-            const merged=(barcodeText?barcodeText+'\n':'')+topText+'\n'+fullText;
-            const lines=merged.split('\n').map(l=>l.trim()).filter(Boolean);
-            const full=lines.join(' ');
-            const out={theater:'',date:'',time:'',seats:''};
-            const MO={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
-            const DOW={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6};
-            const toMoFW=s=>{const w=((s||'').match(/[A-Za-z]+/g)||[]);return w.length?MO[w[0].toLowerCase()]||0:0;};
-            const toMo=s=>{const k=(s||'').toLowerCase().replace(/[^a-z]/g,'');return MO[k]||MO[k.slice(0,3)]||0;};
-            const toDOW=s=>{const w=((s||'').match(/[A-Za-z]+/g)||[]);if(!w.length)return -1;const v=DOW[w[0].toLowerCase()];return v!==undefined?v:-1;};
-            const pad2=n=>String(n).padStart(2,'0');
-            const mkD=(m,d,y)=>(m&&d>=1&&d<=31)?`${y||yr}-${pad2(m)}-${pad2(d)}`:null;
-            const MON='(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-            // TIME
-            const tm=full.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
-            if(tm){let h=+tm[1];if(tm[3].toUpperCase()==='PM'&&h!==12)h+=12;if(tm[3].toUpperCase()==='AM'&&h===12)h=0;out.time=`${pad2(h)}:${tm[2]}`;}
-            // DATE 1: barcode ISO
-            if(barcodeText){const b1=barcodeText.match(/\b(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/);if(b1)out.date=`${b1[1]}-${pad2(+b1[2])}-${pad2(+b1[3])}`;if(!out.date){const b2=barcodeText.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})\b/);if(b2)out.date=`${b2[3]}-${pad2(+b2[1])}-${pad2(+b2[2])}`;}if(out.date)console.log('[Date] barcode:',out.date);}
-            // DATE 2: year-bearing patterns first (avoids "IN THEATERS FEBRUARY 6")
-            if(!out.date){
-                const corpus=[...lines];
-                for(let i=0;i<lines.length-1;i++)corpus.push(lines[i]+' '+lines[i+1]);
-                for(let i=0;i<lines.length-2;i++)corpus.push(lines[i]+' '+lines[i+1]+' '+lines[i+2]);
-                corpus.push(full);
-                for(const src of corpus){const m=src.match(new RegExp('(?:\\b(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\\s+)?('+MON+')[\\s,]+(\\d{1,2})(?:st|nd|rd|th)?[,\\s]+(20\\d{2})','i'));if(m){const d=mkD(toMo(m[1]),+m[2],m[3]);if(d){out.date=d;break;}}}
-                if(!out.date){for(const src of corpus){let m;m=src.match(new RegExp('('+MON+')[.\\s,]+(\\d{1,2})(?!\\d)','i'));if(m){const d=mkD(toMo(m[1]),+m[2]);if(d){out.date=d;break;}}m=src.match(new RegExp('(\\d{1,2})[.\\s]+('+MON+')(?!\\w)','i'));if(m){const d=mkD(toMo(m[2]),+m[1]);if(d){out.date=d;break;}}}}
+        // Crop the detected barcode out of the image, return base64 PNG
+        function cropBarcodeFromImage(imgEl, result) {
+            const points = result.resultPoints;
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, 300, 300);
+
+            if (points && points.length >= 2) {
+                const xs  = points.map(p => p.x);
+                const ys  = points.map(p => p.y);
+                const pad = Math.max(imgEl.naturalWidth, imgEl.naturalHeight) * 0.05;
+                const x   = Math.max(0, Math.min(...xs) - pad);
+                const y   = Math.max(0, Math.min(...ys) - pad);
+                const x2  = Math.min(imgEl.naturalWidth,  Math.max(...xs) + pad);
+                const y2  = Math.min(imgEl.naturalHeight, Math.max(...ys) + pad);
+                const side = Math.max(x2 - x, y2 - y);
+                ctx.drawImage(imgEl, x, y, side, side, 0, 0, 300, 300);
+            } else {
+                // No corner points — crop center 60% square
+                const side = Math.min(imgEl.naturalWidth, imgEl.naturalHeight) * 0.6;
+                const sx = (imgEl.naturalWidth  - side) / 2;
+                const sy = (imgEl.naturalHeight - side) / 2;
+                ctx.drawImage(imgEl, sx, sy, side, side, 0, 0, 300, 300);
             }
-            // DATE 3: Harkins DOW — "MAR" + "THU" → find that Thursday in March
-            if(!out.date){
-                const SKIP=/\b(CINE|XL|Matinee|Arrowhead|Cinemark|AMC|Regal|Harkins|Alamo|Fountains|Add|Wallet|Auditorium|Confirm|Standard|Luxury|Format|Hail|Mary|Project|Solo|Mio|Theaters?)\b/i;
-                let foundMo=0,foundDow=-1;
-                for(let i=0;i<lines.length;i++){const mo=toMoFW(lines[i]);if(!mo||SKIP.test(lines[i])||(lines[i].match(/[A-Za-z]+/g)||[]).length>4)continue;foundMo=mo;for(let j=Math.max(0,i-3);j<=Math.min(lines.length-1,i+8);j++){const dow=toDOW(lines[j]);if(dow>=0&&!SKIP.test(lines[j])&&(lines[j].match(/[A-Za-z]+/g)||[]).length<=3){foundDow=dow;break;}}break;}
-                if(foundMo>0&&foundDow>=0){const today=new Date();today.setHours(0,0,0,0);const cands=[];for(let d=1;d<=31;d++){const dt=new Date(yr,foundMo-1,d);if(dt.getMonth()!==foundMo-1)break;if(dt.getDay()===foundDow)cands.push(d);}if(cands.length){let best=cands[0];for(const d of cands){if(new Date(yr,foundMo-1,d)>=today){best=d;break;}}out.date=mkD(foundMo,best,yr);console.log('[Date] DOW:',out.date);}}
-            }
-            // SEATS
-            const isJunk=l=>/https?:\/\/|\.com\b|\.net\b|\.org\b/i.test(l)||/[+()]{2,}/.test(l)||/^\s*[\(\[]/.test(l)||/\b\d{5,}\b/.test(l);
-            const SEAT_RE=/\b([A-HJ-Z]-?\d{1,3})\b/g,NO_SEAT=/^(PG|2D|3D|XL|ID)/i;
-            const cleanLines=lines.filter(l=>!isJunk(l));
-            const si=cleanLines.findIndex(l=>/\bseats?\b/i.test(l));
-            const ss=si>=0?cleanLines[si]+' '+(cleanLines[si+1]||''):cleanLines.join(' ');
-            let sm=[...ss.matchAll(SEAT_RE)].map(m=>m[1]).filter(s=>!NO_SEAT.test(s));
-            if(!sm.length){for(const line of cleanLines){const lm=[...line.matchAll(SEAT_RE)].map(m=>m[1]).filter(s=>!NO_SEAT.test(s));if(lm.length>=2){sm=lm;break;}}}
-            out.seats=[...new Set(sm)].join(', ');
-            // THEATER
-            const CHAIN=/\b(cinemark|amc|regal|harkins|alamo|megaplex|cinepolis|ipic|imax|arrowhead)\b/i;
-            const SKIP_TH=/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|CINE)\b/i;
-            const MONRE=new RegExp(MON,'i'),TSTRIP=/\s*\d{1,2}:\d{2}\s*(?:AM|PM)\s*$/i;
-            for(const l of cleanLines){if(CHAIN.test(l)){out.theater=l.replace(TSTRIP,'').replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();break;}}
-            if(!out.theater){for(const l of cleanLines){if(/^\d/.test(l))continue;if(SKIP_TH.test(l)||MONRE.test(l))continue;if(/\b(mon|tue|wed|thu|fri|sat|sun)\b/i.test(l))continue;if(/^[A-Z]/.test(l)){out.theater=l.replace(TSTRIP,'').replace(/,.*$/,'').trim();break;}}}
-            console.log('[OCR result]',out);
-            return out;
+            return canvas.toDataURL('image/png');
         }
 
+        // ── TICKET: AI Extraction (Primary Method) ──
+        async function analyzeTicketWithGemini(base64Image) {
+            const apiKey = localStorage.getItem('gemini_api_key') || ""; 
+            if (!apiKey) {
+                throw new Error("No API key found. Please enter it in your Profile tab.");
+            }
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const [header, b64Data] = base64Image.split(',');
+            const mimeType = header.split(';')[0].split(':')[1];
+            
+            const currentYear = new Date().getFullYear();
+            
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: `Extract the details from this movie ticket screenshot. The current year is ${currentYear}.
+                        
+                        CRITICAL FORMATTING RULES:
+                        - Harkins theaters often stack the date (e.g., 'MAR' on one line, '19' on the next). Combine them.
+                        - Cinemark theaters often write the date linearly (e.g. 'Tuesday, March 10, 2026'). 
+                        
+                        Extract:
+                        1. 'theater': Name of the cinema (e.g. 'Arrowhead Fountains 18' or 'Cinemark Mesa 16'). DO NOT put dates, days of the week, or times in this field.
+                        2. 'date': Convert to YYYY-MM-DD. If year is missing (like 'MAR 19'), use ${currentYear}.
+                        3. 'time': Convert to 24-hour HH:MM format (e.g. '14:00' for 2:00 PM).
+                        4. 'seats': Exact seat numbers. Look for 'F-5, F-6' or 'F7, F8'. Ignore ticket counts like '2 Tickets'.` },
+                        { inlineData: { mimeType: mimeType, data: b64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            theater: { type: "STRING", description: "Name of the movie theater (e.g. 'Arrowhead Fountains 18' or 'Cinemark Mesa 16'). Exclude the street address." },
+                            date: { type: "STRING", description: "Convert to YYYY-MM-DD. If year is missing (like 'MAR 19'), use 2026." },
+                            time: { type: "STRING", description: "Convert to 24-hour HH:MM format (e.g. '14:00' for 2:00 PM, '19:25' for 7:25 PM)." },
+                            seats: { type: "STRING", description: "Exact seat numbers. Look for 'F-5, F-6' or 'F7, F8'. Ignore ticket counts like '2 Tickets'." }
+                        },
+                        required: ["theater", "date", "time", "seats"]
+                    }
+                }
+            };
+
+            let retries = 3;
+            let delay = 1000;
+            while (retries > 0) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error("API Error: " + response.statusText);
+                    const result = await response.json();
+                    let text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("No text returned");
+                    
+                    // Safely strip markdown block
+                    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    return JSON.parse(text);
+                } catch (e) {
+                    retries--;
+                    if (retries === 0) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // ── TICKET: OCR with Tesseract.js (Offline Fallback for robust parsing) ──
+        async function analyzeTicketWithOCR(imgEl) {
+            const currentYear = new Date().getFullYear();
+
+            const canvas = document.createElement('canvas');
+            canvas.width  = imgEl.naturalWidth  || imgEl.width;
+            canvas.height = imgEl.naturalHeight || imgEl.height;
+            canvas.getContext('2d').drawImage(imgEl, 0, 0);
+
+            const worker = await Tesseract.createWorker('eng', 1, {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const btn = document.getElementById('save-ticket-btn');
+                        if (btn) btn.innerText = `✨ Reading text... ${Math.round(m.progress*100)}%`;
+                    }
+                }
+            });
+            const { data: { text } } = await worker.recognize(canvas);
+            await worker.terminate();
+
+            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+            const full  = lines.join(' ');
+            const result = { theater: '', date: '', time: '', seats: '' };
+
+            // 1. Time Extraction
+            const timeMatch = full.match(/\b((?:1[0-2]|0?[1-9]):[0-5][0-9])\s*(AM|PM|am|pm)?\b/i);
+            if (timeMatch) {
+                let hr = parseInt(timeMatch[1].split(':')[0], 10);
+                let min = timeMatch[1].split(':')[1];
+                let ampm = (timeMatch[2] || "").toUpperCase();
+                if (ampm === "PM" && hr < 12) hr += 12;
+                if (ampm === "AM" && hr === 12) hr = 0;
+                result.time = `${hr.toString().padStart(2, '0')}:${min}`;
+            }
+
+            // 2. Date Extraction (Robust against newline splits)
+            const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12, january:1, february:2, march:3, april:4, august:8, september:9, october:10, november:11, december:12 };
+            const monRegex = Object.keys(months).join('|');
+            
+            // Format 1: Tuesday, March 10, 2026
+            const dateMatch1 = full.match(new RegExp(`\\b(${monRegex})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d{2})`, 'i'));
+            // Format 2: MAR \n 19 (handles newlines and spaces natively for Harkins stacked dates)
+            const dateMatch2 = text.replace(/\n/g, ' ').match(new RegExp(`\\b(${monRegex})[\\s.,|]+(\\d{1,2})\\b`, 'i'));
+            // Format 3: 19 MAR
+            const dateMatch3 = full.match(new RegExp(`\\b(\\d{1,2})[\\s.,]+(${monRegex})\\b`, 'i'));
+
+            if (dateMatch1) {
+                let m = months[dateMatch1[1].toLowerCase()];
+                result.date = `${dateMatch1[3]}-${m.toString().padStart(2, '0')}-${dateMatch1[2].padStart(2, '0')}`;
+            } else if (dateMatch2) {
+                let m = months[dateMatch2[1].toLowerCase()];
+                result.date = `${currentYear}-${m.toString().padStart(2, '0')}-${dateMatch2[2].padStart(2, '0')}`;
+            } else if (dateMatch3) {
+                let m = months[dateMatch3[2].toLowerCase()];
+                result.date = `${currentYear}-${m.toString().padStart(2, '0')}-${dateMatch3[1].padStart(2, '0')}`;
+            }
+
+            // 3. Seat Extraction
+            const seatPattern = /\bSeats?\s*[:\-]?\s*([A-Z]-?\d{1,3}(?:[\s,]+[A-Z]-?\d{1,3})*)/i;
+            const seatMatch = full.match(seatPattern);
+            if (seatMatch) {
+                result.seats = seatMatch[1].replace(/\s+/g, ' ').trim();
+            } else {
+                // Check for raw formatting "F-5, F-6" or "F7,F8" skipping standard video formats
+                const rawSeats = full.match(/\b([A-Z]-?\d{1,3}(?:(?:\s*,\s*|\s+)[A-Z]-?\d{1,3})+)\b/);
+                if (rawSeats && !/\b(PG|AM|PM|2D|3D)\b/i.test(rawSeats[0])) {
+                    result.seats = rawSeats[1].trim();
+                }
+            }
+
+            // 4. Theater Extraction
+            for (let line of lines) {
+                if (/\b(Cinemark|AMC|Regal|Harkins|Megaplex|Alamo|Arrowhead|Fountains|Cinema|Theatre)\b/i.test(line)) {
+                    // Stop at the address part
+                    result.theater = line.replace(/\b\d{4,}\s+[A-Z].*/i, '').trim();
+                    break;
+                }
+            }
+
+            // Fallback for independent theaters
+            if (!result.theater) {
+                for (let line of lines) {
+                    if (line.length < 5 || line.length > 40) continue;
+                    if (/^\d/.test(line)) continue;
+                    if (/\b(PG|PG-13|R|G|NR|AM|PM|Auditorium|Seats?|Tickets?|Confirmation)\b/i.test(line)) continue;
+                    if (line.match(new RegExp(`\\b(${monRegex})\\b`, 'i'))) continue;
+                    
+                    if (/^[A-Z]/.test(line)) {
+                        result.theater = line;
+                        break;
+                    }
+                }
+            }
+
+            return result;
+        }
+        
         window.openTicketModal = function(mId = null, mTitle = null, mPoster = null, th = '', dt = '', tm = '', planId = null) {
             if (mId) {
                 currentViewedMovie = { id: mId, title: mTitle, posterPath: mPoster };
@@ -2928,8 +3026,8 @@
             
             if(cropperInstance) cropperInstance.destroy();
             cropperInstance = null;
-            (function(){var e=document.getElementById('ticket-cropper-img');if(e)e.src='';})();
-            (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
+            document.getElementById('ticket-cropper-img').src = '';
+            document.getElementById('cropper-container').style.display = 'none';
 
             currentPlanTicketId = planId;
             closeModal('movie-modal');
@@ -2956,56 +3054,83 @@
             reader.onload = function(ev) {
                 const imgEl = new Image();
                 imgEl.onload = async function() {
-                    const qrBox  = document.getElementById('qr-preview-box');
-                    const qrImg  = document.getElementById('qr-preview-img');
-                    const qrStat = document.getElementById('qr-status');
+                    // ── Step 1: Auto-detect QR code ──
+                    const qrBox   = document.getElementById('qr-preview-box');
+                    const qrImg   = document.getElementById('qr-preview-img');
+                    const qrStat  = document.getElementById('qr-status');
                     document.getElementById('ocr-status-bar').textContent = '🔎 Scanning for QR code...';
 
-                    // ── Step 1: Detect barcode ──
                     const qrCode = await detectBarcodeFromImage(imgEl);
-                    let barcodeText = '';
                     if (qrCode) {
-                        barcodeText = qrCode.text || '';
-                        console.log('[Barcode text]', barcodeText);
                         scannedQrBase64 = cropBarcodeFromImage(imgEl, qrCode);
                         qrImg.src = scannedQrBase64;
                         qrBox.classList.remove('error');
                         qrStat.textContent = '✓ QR code detected automatically';
                         qrBox.style.display = 'block';
-                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
+                        document.getElementById('cropper-container').style.display = 'none';
                     } else {
+                        // Fallback to manual cropper if barcode not found
                         scannedQrBase64 = null;
                         qrBox.style.display = 'none';
-                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='block';})();
-                        (function(){
-                            var cropperImg=document.getElementById('ticket-cropper-img');
-                            if(!cropperImg) return;
-                            cropperImg.src=ev.target.result;
-                            cropperImg.style.display='block';
-                            cropperImg.style.maxWidth='100%';
-                            if(cropperInstance) cropperInstance.destroy();
-                            cropperInstance=new Cropper(cropperImg,{aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
-                        })();
+                        document.getElementById('cropper-container').style.display = 'block';
+                        
+                        const cropperImg = document.getElementById('ticket-cropper-img');
+                        cropperImg.src = ev.target.result;
+                        cropperImg.style.display = 'block';
+                        cropperImg.style.maxWidth = '100%';
+                        
+                        if(cropperInstance) cropperInstance.destroy();
+                        cropperInstance = new Cropper(cropperImg, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            dragMode: 'move',
+                            autoCropArea: 0.6,
+                            background: false
+                        });
+                        showToast("Could not auto-detect barcode. Please box it manually.", true);
                     }
 
-                    // ── Step 2: OCR ──
+                    // Resize for Gemini/OCR to keep payload small
+                    let w = imgEl.width, h = imgEl.height;
+                    const MAX = 1200; 
+                    if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
+                    else if (h > MAX) { w *= MAX / h; h = MAX; }
+                    const gCanvas = document.createElement('canvas');
+                    gCanvas.width = w; gCanvas.height = h;
+                    gCanvas.getContext('2d').drawImage(imgEl, 0, 0, w, h);
+                    const base64ForExtraction = gCanvas.toDataURL('image/jpeg', 0.8);
+
+                    // ── Step 2: Extract ticket details ──
                     try {
-                        document.getElementById('ocr-status-bar').textContent = '🔍 Reading your ticket...';
-                        const data = await analyzeTicketWithOCR(imgEl, barcodeText);
+                        let data;
+                        document.getElementById('ocr-status-bar').textContent = '🧠 Analyzing text...';
+                        
+                        try {
+                            // Try Gemini First
+                            data = await analyzeTicketWithGemini(base64ForExtraction);
+                        } catch (geminiErr) {
+                            // Fallback to robust offline OCR
+                            console.warn("Gemini AI unavailable, switching to local offline scanner...");
+                            document.getElementById('ocr-status-bar').textContent = 'Fallback local scanner activated...';
+                            data = await analyzeTicketWithOCR(imgEl);
+                        }
+
                         if (data) {
                             if (data.theater) document.getElementById('ticket-theater').value = data.theater;
-                            document.getElementById('ticket-date').value = data.date || new Date().toISOString().slice(0,10);
-                            if (data.time)  document.getElementById('ticket-time').value  = data.time;
-                            if (data.seats) document.getElementById('ticket-seats').value = data.seats;
-                            const filled = [data.theater,data.date,data.time,data.seats].filter(Boolean).length;
-                            document.getElementById('ocr-status-bar').textContent = filled > 0
-                                ? `✅ Found ${filled} field${filled>1?'s':''}! Review and adjust below.`
-                                : `📝 Couldn't auto-read — please fill in manually.`;
+                            if (data.date)    document.getElementById('ticket-date').value    = data.date;
+                            if (data.time)    document.getElementById('ticket-time').value    = data.time;
+                            if (data.seats)   document.getElementById('ticket-seats').value   = data.seats;
+
+                            const filled = Object.values(data).filter(Boolean).length;
+                            if (filled > 0) {
+                                document.getElementById('ocr-status-bar').textContent = `✅ Found ${filled} field${filled>1?'s':''}! Review and adjust below.`;
+                            } else {
+                                document.getElementById('ocr-status-bar').textContent = `📝 Couldn't auto-read — please fill in manually.`;
+                            }
                         }
                     } catch(err) {
-                        console.error('OCR failed:', err);
-                        document.getElementById('ocr-status-bar').textContent = '📝 Scan complete — review fields below.';
-                        document.getElementById('ticket-date').value = new Date().toISOString().slice(0,10);
+                        console.error('Extraction failed:', err);
+                        document.getElementById('ocr-status-bar').textContent = '📝 Extraction unavailable — please fill in manually.';
                     } finally {
                         saveBtn.innerText = "Generate Digital Ticket";
                         saveBtn.disabled = false;
@@ -3054,8 +3179,8 @@
             renderPlansAndTickets();
         });
 
-        window.deleteTicket = async function(ticketId) {
-            if(await showConfirm("Delete Ticket", "This ticket will be permanently removed.", "Delete")) {
+        window.deleteTicket = function(ticketId) {
+            if(confirm("Are you sure you want to delete this ticket?")) {
                 myTickets = myTickets.filter(t => String(t.id) !== String(ticketId));
                 syncTicketsToFirestore();
                 renderPlansAndTickets();
@@ -3173,7 +3298,7 @@
         
         window.deletePlan = async function(planId) {
             if(!currentUser) return;
-            if(await showConfirm("Cancel Movie Night", "This plan will be permanently deleted for everyone.", "Delete")) {
+            if(confirm("Are you sure you want to cancel and delete this movie plan?")) {
                 try {
                     const userRef = db.collection('users').doc(currentUser.uid);
                     const userSnap = await userRef.get();
@@ -3239,150 +3364,153 @@
         
         function renderPlansAndTickets() {
             const ticketsContainer = document.getElementById('tickets-container');
-            const plansContainer   = document.getElementById('plans-container');
+            const plansContainer = document.getElementById('plans-container');
+            
             if(!ticketsContainer || !plansContainer) return;
+            
             if(!currentUser) {
-                const msg = '<div style="color:#aaa;font-size:0.9rem;text-align:center;padding:2rem;">Sign in to view Tickets & Plans.</div>';
-                ticketsContainer.innerHTML = msg; plansContainer.innerHTML = ''; return;
+                const msg = '<div style="color:#aaa; font-size: 0.9rem; text-align:center; padding: 2rem;">Sign in to view Tickets & Plans.</div>';
+                ticketsContainer.innerHTML = msg;
+                plansContainer.innerHTML = '';
+                return;
             }
-            const now = new Date();
-            const expireMs = 2 * 60 * 60 * 1000;
-            const getShowDt=(date,time)=>{if(!date)return null;const b=new Date(date+'T'+(time||'23:59')+':00');return isNaN(b)?null:b;};
-            const isExpired=(date,time)=>{const dt=getShowDt(date,time);return dt?(now-dt)>expireMs:false;};
-
-            const myMapped = myTickets.map(t=>({...t, addedBy:'You', addedByAvatar:currentUser.photoURL||PLACEHOLDER_IMG}));
-            const activeT  = myMapped.filter(t=>!isExpired(t.date,t.time)).sort((a,b)=>(getShowDt(a.date,a.time)||0)-(getShowDt(b.date,b.time)||0));
-            const archiveT = myMapped.filter(t=> isExpired(t.date,t.time)).sort((a,b)=>(getShowDt(b.date,b.time)||0)-(getShowDt(a.date,a.time)||0));
-            const allTickets = [...myMapped, ...allFriendsTickets];
-
-            const mkTicket=(t,archived=false)=>{
-                const img=(t.posterPath&&t.posterPath!=='null')?`https://image.tmdb.org/t/p/w200${t.posterPath}`:PLACEHOLDER_IMG;
-                const delBtn=`<button class="remove-btn" style="position:absolute;top:-10px;left:-10px;z-index:10;width:28px;height:28px;font-size:1rem;box-shadow:0 2px 4px rgba(0,0,0,.5);" onclick="deleteTicket('${t.id}')" title="Delete">&times;</button>`;
-                const pastBadge=archived?`<span style="position:absolute;top:6px;right:6px;background:#444;color:#aaa;font-size:0.6rem;padding:2px 6px;border-radius:10px;">PAST</span>`:'';
-                return `<div class="ticket" style="${archived?'opacity:0.6;':''}">
-                    ${delBtn}${pastBadge}
-                    <div class="ticket-info"><img src="${img}" alt="${escHtml(t.title)}">
-                        <div class="ticket-details">
-                            <h4 title="${escHtml(t.title)}">${escHtml(t.title)}</h4>
-                            <p style="color:var(--primary);margin-bottom:2px;">${escHtml(t.theater)}</p>
-                            <p>${formatDateMDY(t.date)} at ${formatTimeAMPM(t.time)}</p>
-                            ${t.seats?`<p style="color:#888;font-size:0.75rem;margin-top:2px;">Seats: ${escHtml(t.seats)}</p>`:''}
+            
+            // Map my own tickets with 'You' label
+            const myMappedTickets = myTickets.map(t => ({...t, addedBy: 'You', addedByAvatar: currentUser.photoURL || PLACEHOLDER_IMG}));
+            const allTickets = [...myMappedTickets, ...allFriendsTickets];
+            
+            // Render Independent Tickets (Tickets not linked to a plan)
+            // UPDATED: Kept in main list!
+            const independentTickets = myMappedTickets; 
+            
+            if(independentTickets.length === 0) {
+                ticketsContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No tickets saved. Find a movie and click "Save Ticket" to add one!</div>';
+            } else {
+                ticketsContainer.innerHTML = independentTickets.map(t => {
+                    const img = (t.posterPath && t.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${t.posterPath}` : PLACEHOLDER_IMG;
+                    
+                    return `
+                    <div class="ticket">
+                        <button class="remove-btn" style="position: absolute; top: -10px; left: -10px; z-index: 10; width: 28px; height: 28px; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);" onclick="deleteTicket('${t.id}')" title="Delete Ticket">×</button>
+                        <div class="ticket-info">
+                            <img src="${img}" alt="${escHtml(t.title)}">
+                            <div class="ticket-details">
+                                <h4 title="${escHtml(t.title)}">${escHtml(t.title)}</h4>
+                                <p style="color:var(--primary); margin-bottom: 2px;">${escHtml(t.theater)}</p>
+                                <p>${formatDateMDY(t.date)} at ${formatTimeAMPM(t.time)}</p>
+                                ${t.seats ? `<p style="color:#888; font-size:0.75rem; margin-top:2px;">Seats: ${escHtml(t.seats)}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="ticket-qr">
+                            <span style="font-size: 0.65rem; color:#888; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Scan Entry</span>
+                            <img src="${t.qr}" alt="QR Code" onclick="enlargeQR('${t.qr}')">
                         </div>
                     </div>
-                    <div class="ticket-qr">
-                        <span style="font-size:0.65rem;color:#888;font-weight:bold;margin-bottom:4px;text-transform:uppercase;">Scan Entry</span>
-                        <img src="${t.qr}" alt="QR" onclick="enlargeQR('${t.qr}')">
-                    </div>
-                </div>`;
-            };
-            let tHtml = activeT.length===0&&archiveT.length===0
-                ? '<div style="color:#666;font-size:0.85rem;">No tickets saved. Find a movie and click "Save Ticket" to add one!</div>'
-                : activeT.map(t=>mkTicket(t)).join('');
-            if(archiveT.length>0) tHtml+=`<div style="margin-top:16px;padding-top:12px;border-top:1px solid #333;">
-                <div onclick="var n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none';this.querySelector('.aa').textContent=n.style.display==='none'?'▶':'▼';"
-                     style="color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;">
-                    <span class="aa">▶</span> Past Tickets (${archiveT.length})
-                </div>
-                <div style="display:none;">${archiveT.map(t=>mkTicket(t,true)).join('')}</div>
-            </div>`;
-            ticketsContainer.innerHTML = tHtml;
-
-            const activeP  = myPlans.filter(p=>!isExpired(p.date,p.time)).sort((a,b)=>(getShowDt(a.date,a.time)||0)-(getShowDt(b.date,b.time)||0));
-            const archiveP = myPlans.filter(p=> isExpired(p.date,p.time)).sort((a,b)=>(getShowDt(b.date,b.time)||0)-(getShowDt(a.date,a.time)||0));
-
-            const mkPlan=(p,archived=false)=>{
-                const isHost=p.hostUid===currentUser.uid;
-                const badge=isHost?'<span class="badge" style="background:#444;">You are Hosting</span>':`<span class="badge" style="background:var(--google-blue);">Invited by ${escHtml(p.hostName)}</span>`;
-                const img=(p.posterPath&&p.posterPath!=='null')?`https://image.tmdb.org/t/p/w200${p.posterPath}`:PLACEHOLDER_IMG;
-                const rel=allTickets.filter(t=>String(t.planId)===String(p.id));
-                const tArea=rel.length>0?`<div class="plan-tickets-area">${rel.map(t=>`
-                    <div class="mini-ticket">
-                        ${t.addedBy==='You'?`<button class="remove-btn" style="position:absolute;top:-5px;left:-5px;width:20px;height:20px;font-size:0.8rem;z-index:5;" onclick="deleteTicket('${t.id}')">&times;</button>`:''}
-                        <img src="${t.qr}" onclick="enlargeQR('${t.qr}')" title="View">
-                        <div style="font-size:0.7rem;color:#444;display:flex;flex-direction:column;justify-content:center;line-height:1.2;">
-                            <b>Ticket</b>${t.seats?`<span style="font-size:0.65rem;color:var(--gold);">${escHtml(t.seats)}</span>`:''}
-                            <span style="display:flex;align-items:center;gap:4px;margin-top:2px;">
-                                <img src="${t.addedByAvatar||PLACEHOLDER_IMG}" onerror="this.src='${PLACEHOLDER_IMG}'" style="width:12px;height:12px;border-radius:50%;margin:0;cursor:default;">
-                                ${escHtml(t.addedBy)}
-                            </span>
+                    `;
+                }).join('');
+            }
+            
+            // Render Plans
+            if(myPlans.length === 0) {
+                plansContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No upcoming plans. Click "Plan with Friends" on a movie to organize a watch!</div>';
+            } else {
+                // Filter out past plans
+                const now = new Date();
+                const upcomingPlans = myPlans.filter(p => new Date(p.date + 'T23:59:59') >= now);
+                
+                if(upcomingPlans.length === 0) {
+                    plansContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">Only past plans exist. Time to schedule a new one!</div>';
+                } else {
+                    plansContainer.innerHTML = upcomingPlans.map(p => {
+                        const isHost = p.hostUid === currentUser.uid;
+                        const badgeStr = isHost ? '<span class="badge" style="background:#444;">You are Hosting</span>' : `<span class="badge" style="background:var(--google-blue);">Invited by ${escHtml(p.hostName)}</span>`;
+                        const img = (p.posterPath && p.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${p.posterPath}` : PLACEHOLDER_IMG;
+                        
+                        // Gather tickets for this plan! (Both mine and friends)
+                        const relatedTickets = allTickets.filter(t => String(t.planId) === String(p.id));
+                        
+                        let ticketsHtml = '';
+                        if(relatedTickets.length > 0) {
+                            ticketsHtml = `
+                                <div class="plan-tickets-area">
+                                    ${relatedTickets.map(t => `
+                                        <div class="mini-ticket">
+                                            ${t.addedBy === 'You' ? `<button class="remove-btn" style="position:absolute; top:-5px; left:-5px; width:20px; height:20px; font-size:0.8rem; z-index:5;" onclick="deleteTicket('${t.id}')">×</button>` : ''}
+                                            <img src="${t.qr}" onclick="enlargeQR('${t.qr}')" title="View Ticket">
+                                            <div style="font-size:0.7rem; color:#444; display:flex; flex-direction:column; justify-content:center; line-height:1.2;">
+                                                <b>Ticket</b>
+                                                ${t.seats ? `<span style="font-size:0.65rem; color:var(--gold);">${escHtml(t.seats)}</span>` : ''}
+                                                <span style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                                    <img src="${t.addedByAvatar}" style="width:12px; height:12px; border-radius:50%; margin:0; cursor:default;">
+                                                    ${escHtml(t.addedBy)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                        }
+                        
+                        // Dropdown linking logic
+                        const unassignedTickets = myMappedTickets.filter(t => String(t.movieId) === String(p.movieId) && !t.planId);
+                        let linkExistingHtml = '';
+                        if (unassignedTickets.length > 0) {
+                            const options = unassignedTickets.map(t => `<option value="${t.id}">${formatDateMDY(t.date)} - ${t.theater}</option>`).join('');
+                            linkExistingHtml = `
+                                <div style="margin-top: 10px; display:flex; gap: 8px;">
+                                    <select id="link-ticket-${p.id}" style="background:#222; color:#fff; border:1px solid #444; border-radius:4px; flex:1; padding: 4px; font-size: 0.85rem;">
+                                        <option value="">Attach an existing ticket...</option>
+                                        ${options}
+                                    </select>
+                                    <button class="plan-action-btn" onclick="linkTicketToPlan('${p.id}')">Link</button>
+                                </div>
+                            `;
+                        }
+                        
+                        // Map invitees to friend avatars
+                        const guestAvatars = p.invitees.map(uid => {
+                            const f = friends.find(x => x.uid === uid);
+                            return `<img src="${f ? f.photoURL : PLACEHOLDER_IMG}" class="plan-guest-avatar" title="${f ? f.displayName : 'Guest'}">`;
+                        }).join('');
+                        
+                        const actionBtns = isHost ? `
+                            <div class="plan-actions">
+                                <button class="plan-action-btn" onclick="openPlanModal('${p.id}')">Edit</button>
+                                <button class="plan-action-btn delete" onclick="deletePlan('${p.id}')">Delete</button>
+                            </div>
+                        ` : '';
+                        
+                        return `
+                        <div class="plan-card">
+                            <div class="plan-header">
+                                ${actionBtns}
+                                <img src="${img}" alt="${escHtml(p.title)}" style="cursor:pointer;" onclick="fetchMovieDetails('${p.movieId}')">
+                                <div class="plan-info">
+                                    <div style="margin-bottom: 6px;">${badgeStr}</div>
+                                    <h4>${escHtml(p.title)}</h4>
+                                    <p style="color:white; font-weight:bold;">${formatDateMDY(p.date)} at ${formatTimeAMPM(p.time)}</p>
+                                    <p style="margin-top: 4px; color:var(--gold);">📍 ${escHtml(p.location)}</p>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                                <div style="font-size: 0.8rem; color:#aaa;">Guests:</div>
+                                <div class="plan-guests">
+                                    <img src="${p.hostAvatar || PLACEHOLDER_IMG}" class="plan-guest-avatar" style="border-color:var(--primary);" title="${escHtml(p.hostName)} (Host)">
+                                    ${guestAvatars}
+                                </div>
+                            </div>
+                            
+                            ${ticketsHtml}
+                            
+                            <div style="border-top: 1px solid #444; padding-top: 12px; display:flex; justify-content:center; align-items:center;">
+                                <button class="btn btn-outline" style="font-size:0.8rem; padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ Attach a Ticket to this Plan</button>
+                            </div>
                         </div>
-                    </div>`).join('')}</div>`:'';
-                const unassigned=myMapped.filter(t=>String(t.movieId)===String(p.movieId)&&!t.planId);
-                const linkHtml=(!archived&&unassigned.length>0)?`<div style="margin-top:10px;display:flex;gap:8px;">
-                    <select id="link-ticket-${p.id}" style="background:#222;color:#fff;border:1px solid #444;border-radius:4px;flex:1;padding:4px;font-size:0.85rem;">
-                        <option value="">Attach existing ticket...</option>
-                        ${unassigned.map(t=>`<option value="${t.id}">${formatDateMDY(t.date)} - ${t.theater}</option>`).join('')}
-                    </select>
-                    <button class="plan-action-btn" onclick="linkTicketToPlan('${p.id}')">Link</button>
-                </div>`:'';
-                const guests=p.invitees.map(uid=>{const f=friends.find(x=>x.uid===uid);return `<img src="${f&&f.photoURL?f.photoURL:PLACEHOLDER_IMG}" onerror="this.src='${PLACEHOLDER_IMG}'" class="plan-guest-avatar" title="${f?escHtml(f.displayName):'Guest'}">`;}).join('');
-                const actions=archived?'':isHost
-                    ?`<div class="plan-actions"><button class="plan-action-btn" onclick="openPlanModal('${p.id}')">Edit</button><button class="plan-action-btn delete" onclick="deletePlan('${p.id}')">Delete</button></div>`
-                    :`<div class="plan-actions"><button class="plan-action-btn delete" onclick="leavePlan('${p.id}')">Leave</button></div>`;
-                return `<div class="plan-card" style="${archived?'opacity:0.6;':''}">
-                    ${archived?'<div style="text-align:center;margin-bottom:8px;"><span style="background:#333;color:#aaa;font-size:0.7rem;padding:3px 10px;border-radius:10px;">PAST MOVIE NIGHT</span></div>':''}
-                    <div class="plan-header">
-                        ${actions}
-                        <img src="${img}" alt="${escHtml(p.title)}" style="cursor:pointer;" onclick="fetchMovieDetails('${p.movieId}')">
-                        <div class="plan-info">
-                            <div style="margin-bottom:6px;">${badge}</div>
-                            <h4>${escHtml(p.title)}</h4>
-                            <p style="color:white;font-weight:bold;">${formatDateMDY(p.date)} at ${formatTimeAMPM(p.time)}</p>
-                            <p style="margin-top:4px;color:var(--gold);">📍 ${escHtml(p.location)}</p>
-                        </div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <div style="font-size:0.8rem;color:#aaa;">Guests:</div>
-                        <div class="plan-guests">
-                            <img src="${p.hostAvatar||PLACEHOLDER_IMG}" onerror="this.src='${PLACEHOLDER_IMG}'" class="plan-guest-avatar" style="border-color:var(--primary);" title="${escHtml(p.hostName)} (Host)">
-                            ${guests}
-                        </div>
-                    </div>
-                    ${tArea}
-                    ${!archived?`<div style="border-top:1px solid #444;padding-top:12px;display:flex;flex-direction:column;align-items:center;gap:6px;">
-                        <button class="btn btn-outline" style="font-size:0.8rem;padding:0.4rem;" onclick="openTicketModalFromPlan('${p.id}')">🎟️ ${rel.length===0?'Attach a Ticket to this Plan':'Add Another Ticket'}</button>
-                        ${linkHtml}
-                    </div>`:''}
-                </div>`;
-            };
-            let pHtml=activeP.length===0&&archiveP.length===0
-                ?'<div style="color:#666;font-size:0.85rem;">No upcoming plans. Click "Plan with Friends" on a movie to organize a watch!</div>'
-                :activeP.map(p=>mkPlan(p)).join('');
-            if(archiveP.length>0) pHtml+=`<div style="margin-top:16px;padding-top:12px;border-top:1px solid #333;">
-                <div onclick="var n=this.nextElementSibling;n.style.display=n.style.display==='none'?'block':'none';this.querySelector('.aa').textContent=n.style.display==='none'?'▶':'▼';"
-                     style="color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;">
-                    <span class="aa">▶</span> Past Movie Nights (${archiveP.length})
-                </div>
-                <div style="display:none;">${archiveP.map(p=>mkPlan(p,true)).join('')}</div>
-            </div>`;
-            plansContainer.innerHTML = pHtml;
-        }
-
-        window.leavePlan = async function(planId) {
-            if(!currentUser) return;
-            if(!await showConfirm("Leave Movie Night","You'll be removed from this plan.","Leave")) return;
-            try {
-                for(const friend of friends) {
-                    const fSnap=await db.collection('users').doc(friend.uid).get();
-                    if(!fSnap.exists) continue;
-                    const fPlans=fSnap.data().plans||[];
-                    const idx=fPlans.findIndex(p=>p.id===planId);
-                    if(idx>=0){fPlans[idx].invitees=(fPlans[idx].invitees||[]).filter(u=>u!==currentUser.uid);await db.collection('users').doc(friend.uid).update({plans:fPlans});break;}
+                        `;
+                    }).join('');
                 }
-                showToast("You've left the movie night.");
-                await loadPlans();
-            } catch(e){ console.error('leavePlan',e); showToast('Could not leave plan.',true); }
-        };
-
-        window.linkTicketToPlan = async function(planId) {
-            const sel=document.getElementById('link-ticket-'+planId);
-            if(!sel||!sel.value) return showToast('Select a ticket first.',true);
-            myTickets=myTickets.map(t=>String(t.id)===String(sel.value)?{...t,planId}:t);
-            await syncTicketsToFirestore();
-            renderPlansAndTickets();
-            showToast('Ticket linked!');
-        };
-
+            }
+        }
 
 
         // ==========================================
@@ -3928,7 +4056,7 @@
                     const card = document.createElement('div');
                     card.className = 'diary-card';
                     card.innerHTML =
-                        `<button class="diary-card-remove" onclick="removeFromDiary('${movie.id}')" title="Remove">&times;</button><img src="${img}" alt="poster" ${clickAction} onerror="this.src='${PLACEHOLDER_IMG}'"><div style="flex-grow:1;display:flex;flex-direction:column;justify-content:flex-end;margin-top:0.4rem;min-width:0;"><h4 style="margin:0 0 0.2rem;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${movie.title}">${movie.title}</h4><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:0.8rem;">${ratingHtml}</div><button style="background:none;border:none;color:#aaa;cursor:pointer;padding:0;font-size:0.8rem;margin-left:5px;display:flex;align-items:center;gap:3px;" onclick="openEditModal('${movie.id}')">✏️ Edit</button></div>${photoBtnHtml}</div>`;
+                        `<button class="diary-card-remove" onclick="removeFromDiary('${movie.id}')" title="Remove">&times;</button><img src="${img}" alt="poster" ${clickAction} onerror="this.src='${PLACEHOLDER_IMG}'"><div style="flex-grow:1;display:flex;flex-direction:column;justify-content:flex-end;margin-top:0.4rem;min-width:0;"><h4 style="margin:0 0 0.2rem;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${movie.title}">${movie.title}</h4><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-size:0.8rem;">${ratingHtml}</div><button style="background:none;border:none;color:#aaa;cursor:pointer;padding:0;font-size:0.8rem;margin-left:5px;display:flex;align-items:center;gap:3px;" onclick="openEditModal('${movie.id}')">✏️ Edit</button></div>${photoBtnHtml}<button style="background:none;border:none;color:#aaa;cursor:pointer;padding:0;font-size:0.75rem;margin-top:3px;display:flex;align-items:center;gap:3px;" onclick="shareDiaryEntry('${movie.id}')">📤 Share</button></div>`;
                     currentGrid.appendChild(card);
                 });
             }
@@ -4421,6 +4549,129 @@
             }
         });
 
+
+        // Share a single diary entry as an Instagram-ready story card
+        window.shareDiaryEntry = async function(movieId) {
+            const movie = diary.find(m => String(m.id) === String(movieId));
+            if (!movie) return;
+
+            const W = 1080, H = 1920;
+            const canvas = document.createElement('canvas');
+            canvas.width = W; canvas.height = H;
+            const ctx = canvas.getContext('2d');
+
+            // Background gradient
+            ctx.fillStyle = '#121212';
+            ctx.fillRect(0, 0, W, H);
+            const grad = ctx.createLinearGradient(0, 0, W, H);
+            grad.addColorStop(0, '#1a0a0a');
+            grad.addColorStop(0.5, '#121212');
+            grad.addColorStop(1, '#0a1a0a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Draw poster (centered, tall)
+            const posterUrl = (movie.posterPath && movie.posterPath !== 'null')
+                ? `https://image.tmdb.org/t/p/w500${movie.posterPath}`
+                : null;
+
+            const drawText = () => {
+                // Overlay gradient at bottom
+                const ov = ctx.createLinearGradient(0, H*0.45, 0, H);
+                ov.addColorStop(0, 'rgba(18,18,18,0)');
+                ov.addColorStop(0.4, 'rgba(18,18,18,0.95)');
+                ov.addColorStop(1, 'rgba(18,18,18,1)');
+                ctx.fillStyle = ov;
+                ctx.fillRect(0, H*0.45, W, H*0.55);
+
+                // Movie title
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${Math.round(W*0.085)}px system-ui, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // Word-wrap title
+                const words = movie.title.split(' ');
+                let lines = [], line = '';
+                for (const w of words) {
+                    const test = line ? line+' '+w : w;
+                    if (ctx.measureText(test).width > W*0.85) { lines.push(line); line = w; }
+                    else line = test;
+                }
+                lines.push(line);
+                const titleY = H * 0.72;
+                const lineH = Math.round(W*0.095);
+                lines.forEach((l, i) => ctx.fillText(l, W/2, titleY + (i - (lines.length-1)/2) * lineH));
+
+                // Rating stars
+                if (movie.rating > 0) {
+                    const stars = '★'.repeat(Math.round(movie.rating)) + '☆'.repeat(5 - Math.round(movie.rating));
+                    ctx.font = `${Math.round(W*0.07)}px system-ui`;
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillText(stars, W/2, H*0.82);
+                    ctx.font = `${Math.round(W*0.045)}px system-ui`;
+                    ctx.fillStyle = '#FFD700';
+                    ctx.fillText(`${movie.rating.toFixed(1)} / 5`, W/2, H*0.86);
+                }
+
+                // Watched date
+                if (movie.watchedDate || movie.releaseDate) {
+                    const d = movie.watchedDate || movie.releaseDate;
+                    ctx.font = `${Math.round(W*0.04)}px system-ui`;
+                    ctx.fillStyle = '#aaaaaa';
+                    ctx.fillText('Watched ' + new Date(d+'T12:00:00').toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}), W/2, H*0.91);
+                }
+
+                // Watermark
+                ctx.font = `bold ${Math.round(W*0.038)}px system-ui`;
+                ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                ctx.fillText('🍿 My Movie Calendar', W/2, H*0.96);
+            };
+
+            if (posterUrl) {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = async () => {
+                    // Draw poster filling top ~70% of canvas
+                    const aspect = img.naturalWidth / img.naturalHeight;
+                    const drawH = H * 0.72;
+                    const drawW = drawH * aspect;
+                    ctx.drawImage(img, (W - drawW) / 2, 0, drawW, drawH);
+                    drawText();
+                    await _doShareCanvas(canvas, movie.title);
+                };
+                img.onerror = async () => { drawText(); await _doShareCanvas(canvas, movie.title); };
+                img.src = posterUrl;
+            } else {
+                drawText();
+                await _doShareCanvas(canvas, movie.title);
+            }
+        };
+
+        async function _doShareCanvas(canvas, title) {
+            canvas.toBlob(async (blob) => {
+                const safe = title.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+                const file = new File([blob], `${safe}-diary.png`, { type: 'image/png' });
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file], title: `I watched ${title}!` });
+                        showToast('📸 Opening share menu...');
+                    } catch(e) {
+                        if (e.name !== 'AbortError') _downloadImg(blob, safe);
+                    }
+                } else {
+                    _downloadImg(blob, safe);
+                }
+            }, 'image/png');
+        }
+
+        function _downloadImg(blob, safe) {
+            const url = URL.createObjectURL(blob), a = document.createElement('a');
+            a.href = url; a.download = `${safe}-diary.png`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+            showToast('Story card downloaded! 📸');
+        }
+
         function downloadFallback(blob, year) {
             const url = URL.createObjectURL(blob),
                 a = document.createElement('a');
@@ -4607,19 +4858,6 @@
         // ==========================================
         // INITIALIZE
         // ==========================================
-
-        let _confirmResolve = null;
-        function showConfirm(title, message, okLabel='Delete') {
-            document.getElementById('confirm-title').textContent = title;
-            document.getElementById('confirm-message').textContent = message;
-            document.getElementById('confirm-ok-btn').textContent = okLabel;
-            document.getElementById('confirm-modal').classList.add('active');
-            return new Promise(res => { _confirmResolve = res; });
-        }
-        function confirmResolve(val) {
-            document.getElementById('confirm-modal').classList.remove('active');
-            if(_confirmResolve) { _confirmResolve(val); _confirmResolve = null; }
-        }
         window.onload = () => {
             setupPWA();
             loadData();
@@ -4632,17 +4870,6 @@
             initFirebase(); // 🔥 Initialize Firebase last
         };
     </script>
-
-    <div id="confirm-modal">
-        <div class="confirm-box">
-            <h3 id="confirm-title">Are you sure?</h3>
-            <p id="confirm-message"></p>
-            <div class="confirm-btns">
-                <button class="confirm-cancel" onclick="confirmResolve(false)">Cancel</button>
-                <button class="confirm-ok" id="confirm-ok-btn" onclick="confirmResolve(true)">Delete</button>
-            </div>
-        </div>
-    </div>
 </body>
 
 </html>
