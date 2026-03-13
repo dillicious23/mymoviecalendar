@@ -2797,78 +2797,34 @@
         
         // ── TICKET: Multi-strategy barcode detection ──
         async function detectBarcodeFromImage(imgEl) {
-            const W = imgEl.naturalWidth  || imgEl.width  || 800;
-            const H = imgEl.naturalHeight || imgEl.height || 600;
-
-            const makeCanvas = (scale, rx=0, ry=0, rw=1, rh=1) => {
-                const ox=Math.round(W*rx), oy=Math.round(H*ry);
-                const ow=Math.round(W*rw), oh=Math.round(H*rh);
-                const cv=document.createElement('canvas');
-                cv.width=Math.round(ow*scale); cv.height=Math.round(oh*scale);
-                cv.getContext('2d').drawImage(imgEl, ox,oy,ow,oh, 0,0,cv.width,cv.height);
+            const W=imgEl.naturalWidth||imgEl.width||800, H=imgEl.naturalHeight||imgEl.height||600;
+            const makeCanvas=(scale,rx=0,ry=0,rw=1,rh=1)=>{
+                const ox=Math.round(W*rx),oy=Math.round(H*ry),ow=Math.round(W*rw),oh=Math.round(H*rh);
+                const cv=document.createElement('canvas'); cv.width=Math.round(ow*scale); cv.height=Math.round(oh*scale);
+                cv.getContext('2d').drawImage(imgEl,ox,oy,ow,oh,0,0,cv.width,cv.height);
                 return {cv,ox,oy,ow,oh,scale};
             };
-            const binarise = cv => {
-                const o=document.createElement('canvas'); o.width=cv.width; o.height=cv.height;
-                const ctx=o.getContext('2d'); ctx.drawImage(cv,0,0);
-                const id=ctx.getImageData(0,0,o.width,o.height),d=id.data;
-                for(let i=0;i<d.length;i+=4){const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];d[i]=d[i+1]=d[i+2]=g<128?0:255;}
-                ctx.putImageData(id,0,0); return o;
-            };
-            const cvToImg = cv => new Promise(r=>{const t=new Image();t.onload=()=>r(t);t.src=cv.toDataURL();});
-            const wrap = (text, points, ox,oy,ow,oh,scale) => {
-                const pts=(points||[]).map(p=>({x:ox+(p.x||0)/scale, y:oy+(p.y||0)/scale}));
+            const binarise=cv=>{const o=document.createElement('canvas');o.width=cv.width;o.height=cv.height;const ctx=o.getContext('2d');ctx.drawImage(cv,0,0);const id=ctx.getImageData(0,0,o.width,o.height),d=id.data;for(let i=0;i<d.length;i+=4){const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];d[i]=d[i+1]=d[i+2]=g<128?0:255;}ctx.putImageData(id,0,0);return o;};
+            const cvToImg=cv=>new Promise(r=>{const t=new Image();t.onload=()=>r(t);t.src=cv.toDataURL();});
+            const wrap=(text,points,ox,oy,ow,oh,scale)=>{
+                const pts=(points||[]).map(p=>({x:ox+(p.x||0)/scale,y:oy+(p.y||0)/scale}));
                 let cx,cy,cw,ch;
-                if(pts.length>=2){
-                    const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
-                    const pad=Math.max(W,H)*0.01; // tight crop
-                    cx=Math.max(0,Math.min(...xs)-pad); cy=Math.max(0,Math.min(...ys)-pad);
-                    const x2=Math.min(W,Math.max(...xs)+pad), y2=Math.min(H,Math.max(...ys)+pad);
-                    cw=x2-cx; ch=y2-cy;
-                } else { cx=ox; cy=oy; cw=ow; ch=oh; }
+                if(pts.length>=2){const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),pad=Math.max(W,H)*0.01;cx=Math.max(0,Math.min(...xs)-pad);cy=Math.max(0,Math.min(...ys)-pad);cw=Math.min(W,Math.max(...xs)+pad)-cx;ch=Math.min(H,Math.max(...ys)+pad)-cy;}
+                else{cx=ox;cy=oy;cw=ow;ch=oh;}
                 return {text,resultPoints:pts,cropX:cx,cropY:cy,cropW:cw,cropH:ch};
             };
-            const makeReader = () => {
-                try {
-                    const hints=new Map(), f=ZXing.BarcodeFormat;
-                    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[f.AZTEC,f.QR_CODE,f.DATA_MATRIX,f.PDF_417,f.CODE_128]);
-                    hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-                    return new ZXing.BrowserMultiFormatReader(hints);
-                } catch(e){ return new ZXing.BrowserMultiFormatReader(); }
-            };
-            const tryZXing = async ({cv,ox,oy,ow,oh,scale}) => {
-                try { const tmp=await cvToImg(cv); const r=await makeReader().decodeFromImageElement(tmp); return r?wrap(r.text,r.resultPoints,ox,oy,ow,oh,scale):null; } catch(e){ return null; }
-            };
+            const makeReader=()=>{try{const hints=new Map(),f=ZXing.BarcodeFormat;hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[f.AZTEC,f.QR_CODE,f.DATA_MATRIX,f.PDF_417,f.CODE_128]);hints.set(ZXing.DecodeHintType.TRY_HARDER,true);return new ZXing.BrowserMultiFormatReader(hints);}catch(e){return new ZXing.BrowserMultiFormatReader();}};
+            const tryZXing=async({cv,ox,oy,ow,oh,scale})=>{try{const tmp=await cvToImg(cv);const r=await makeReader().decodeFromImageElement(tmp);return r?wrap(r.text,r.resultPoints,ox,oy,ow,oh,scale):null;}catch(e){return null;}};
             const regions=[[2,0,0,1,1],[3,0,0,.55,.55],[3,.45,0,.55,.55],[3,.2,0,.6,.55],[2,0,0,1,.5],[4,.2,0,.6,.4],[1,0,0,1,1],[1.5,0,0,1,1]];
-
-            if(window.BarcodeDetector){
-                try {
-                    const det=new BarcodeDetector({formats:['aztec','qr_code','data_matrix','pdf417','code_128']});
-                    for(const [sc,rx,ry,rw,rh] of regions){
-                        const info=makeCanvas(sc,rx,ry,rw,rh);
-                        for(const src of [info.cv,binarise(info.cv)]){
-                            const res=await det.detect(src);
-                            if(res.length>0){console.log('[Barcode] BD:',res[0].rawValue);return wrap(res[0].rawValue,res[0].cornerPoints,info.ox,info.oy,info.ow,info.oh,sc);}
-                        }
-                    }
-                } catch(e){ console.log('[Barcode] BD err:',e.message); }
-            }
-            for(const [sc,rx,ry,rw,rh] of regions){
-                const info=makeCanvas(sc,rx,ry,rw,rh);
-                for(const cv of [info.cv,binarise(info.cv)]){const r=await tryZXing({...info,cv});if(r){console.log('[Barcode] ZX:',r.text);return r;}}
-            }
+            if(window.BarcodeDetector){try{const det=new BarcodeDetector({formats:['aztec','qr_code','data_matrix','pdf417','code_128']});for(const [sc,rx,ry,rw,rh] of regions){const info=makeCanvas(sc,rx,ry,rw,rh);for(const src of [info.cv,binarise(info.cv)]){const res=await det.detect(src);if(res.length>0){console.log('[Barcode] BD:',res[0].rawValue);return wrap(res[0].rawValue,res[0].cornerPoints,info.ox,info.oy,info.ow,info.oh,sc);}}}}catch(e){console.log('[Barcode] BD err:',e.message);}}
+            for(const [sc,rx,ry,rw,rh] of regions){const info=makeCanvas(sc,rx,ry,rw,rh);for(const cv of [info.cv,binarise(info.cv)]){const r=await tryZXing({...info,cv});if(r){console.log('[Barcode] ZX:',r.text);return r;}}}
             console.log('[Barcode] Not detected'); return null;
         }
-
-        // Crop barcode from original image coords — tight square crop
-        function cropBarcodeFromImage(imgEl, result) {
-            const {cropX,cropY,cropW,cropH} = result;
-            const side = Math.max(cropW,cropH);
-            const canvas=document.createElement('canvas');
-            canvas.width=canvas.height=300;
-            const ctx=canvas.getContext('2d');
-            ctx.fillStyle='#fff'; ctx.fillRect(0,0,300,300);
-            if(side>0) ctx.drawImage(imgEl, cropX,cropY,side,side, 0,0,300,300);
+        function cropBarcodeFromImage(imgEl,result){
+            const{cropX,cropY,cropW,cropH}=result, side=Math.max(cropW,cropH);
+            const canvas=document.createElement('canvas'); canvas.width=canvas.height=300;
+            const ctx=canvas.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,300,300);
+            if(side>0) ctx.drawImage(imgEl,cropX,cropY,side,side,0,0,300,300);
             return canvas.toDataURL('image/png');
         }
 
@@ -2878,27 +2834,22 @@
         async function analyzeTicketWithOCR(imgEl, barcodeText='') {
             const yr=new Date().getFullYear();
             const statusEl=document.getElementById('ocr-status-bar');
-            const W=imgEl.naturalWidth||imgEl.width||800;
-            const H=imgEl.naturalHeight||imgEl.height||600;
+            const W=imgEl.naturalWidth||imgEl.width||800, H=imgEl.naturalHeight||imgEl.height||600;
 
-            const runOCR = async cv => {
+            const runOCR=async cv=>{
                 const worker=await Tesseract.createWorker('eng',1,{
                     logger:m=>{if(m.status==='recognizing text'&&statusEl)
                         statusEl.textContent=`📖 Reading text... ${Math.round(m.progress*100)}%`;}
                 });
-                try { const {data:{text}}=await worker.recognize(cv); return text; }
-                finally { await worker.terminate(); }
+                try{const{data:{text}}=await worker.recognize(cv);return text;}finally{await worker.terminate();}
             };
 
-            const fullCv=document.createElement('canvas');
-            fullCv.width=W; fullCv.height=H;
+            const fullCv=document.createElement('canvas'); fullCv.width=W; fullCv.height=H;
             fullCv.getContext('2d').drawImage(imgEl,0,0);
             const fullText=await runOCR(fullCv);
             console.log('[OCR raw]',fullText);
 
-            // Second pass: top 45% at 2× — better for stacked Harkins date
-            const topCv=document.createElement('canvas');
-            topCv.width=W*2; topCv.height=Math.round(H*0.45)*2;
+            const topCv=document.createElement('canvas'); topCv.width=W*2; topCv.height=Math.round(H*0.45)*2;
             topCv.getContext('2d').drawImage(imgEl,0,0,W,H*0.45,0,0,topCv.width,topCv.height);
             const topText=await runOCR(topCv);
             console.log('[OCR top]',topText);
@@ -2909,8 +2860,10 @@
             const out={theater:'',date:'',time:'',seats:''};
 
             const MO={jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+            const DOW={sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6};
             const toMoFW=s=>{const w=((s||'').match(/[A-Za-z]+/g)||[]);return w.length?MO[w[0].toLowerCase()]||0:0;};
             const toMo=s=>{const k=(s||'').toLowerCase().replace(/[^a-z]/g,'');return MO[k]||MO[k.slice(0,3)]||0;};
+            const toDOW=s=>{const w=((s||'').match(/[A-Za-z]+/g)||[]);if(!w.length)return -1;const v=DOW[w[0].toLowerCase()];return v!==undefined?v:-1;};
             const pad2=n=>String(n).padStart(2,'0');
             const mkD=(m,d,y)=>(m&&d>=1&&d<=31)?`${y||yr}-${pad2(m)}-${pad2(d)}`:null;
             const MON='(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
@@ -2919,14 +2872,15 @@
             const tm=full.match(/\b(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
             if(tm){let h=+tm[1];if(tm[3].toUpperCase()==='PM'&&h!==12)h+=12;if(tm[3].toUpperCase()==='AM'&&h===12)h=0;out.time=`${pad2(h)}:${tm[2]}`;}
 
-            // DATE — try barcode text for ISO dates first
+            // DATE — barcode ISO patterns first
             if(barcodeText){
                 const bd=barcodeText.match(/\b(20\d{2})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/);
                 if(bd) out.date=`${bd[1]}-${pad2(+bd[2])}-${pad2(+bd[3])}`;
                 if(!out.date){const bd2=barcodeText.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](20\d{2})\b/);if(bd2) out.date=`${bd2[3]}-${pad2(+bd2[1])}-${pad2(+bd2[2])}`;}
-                if(out.date) console.log('[Date] from barcode:',out.date);
+                if(out.date) console.log('[Date] barcode:',out.date);
             }
-            // DATE — corpus patterns
+
+            // DATE — standard text patterns (Cinemark "Tuesday, March 10, 2026")
             if(!out.date){
                 const corpus=[...lines];
                 for(let i=0;i<lines.length-1;i++) corpus.push(lines[i]+' '+lines[i+1]);
@@ -2942,23 +2896,61 @@
                     if(m){const d=mkD(toMo(m[2]),+m[1]);if(d){out.date=d;break;}}
                 }
             }
-            // DATE — Harkins stacked fallback
+
+            // DATE — Harkins: find month line + day-of-week line, compute exact date
+            // e.g. "MAR" + "THU" → find which Thursday in March matches soonest
             if(!out.date){
                 const SKIP=/\b(CINE|XL|Matinee|Arrowhead|Cinemark|AMC|Regal|Harkins|Alamo|Fountains|Add|Wallet|Auditorium|Confirm|Standard|Luxury|Format|Hail|Mary|Project|Solo|Mio)\b/i;
+                let foundMo=0, foundDow=-1;
                 for(let i=0;i<lines.length;i++){
                     const mo=toMoFW(lines[i]);
-                    if(!mo||SKIP.test(lines[i])) continue;
-                    if((lines[i].match(/[A-Za-z]+/g)||[]).length>4) continue;
-                    for(let j=i;j<=Math.min(i+10,lines.length-1);j++){
-                        if(j>i&&SKIP.test(lines[j])) continue;
-                        const dig=lines[j].replace(/[^0-9]/g,'');
-                        if(dig.length>=1&&dig.length<=2){const n=+dig;if(n>=1&&n<=31){const d=mkD(mo,n);if(d){out.date=d;break;}}}
+                    if(!mo||SKIP.test(lines[i])||(lines[i].match(/[A-Za-z]+/g)||[]).length>4) continue;
+                    foundMo=mo;
+                    // Search nearby lines for a day-of-week
+                    for(let j=Math.max(0,i-3);j<=Math.min(lines.length-1,i+8);j++){
+                        const dow=toDOW(lines[j]);
+                        if(dow>=0&&!SKIP.test(lines[j])&&(lines[j].match(/[A-Za-z]+/g)||[]).length<=3){
+                            foundDow=dow; break;
+                        }
                     }
-                    if(out.date) break;
+                    break;
+                }
+                if(foundMo>0 && foundDow>=0){
+                    // Find all days in foundMo/yr with that day-of-week, pick soonest from today
+                    const today=new Date(); today.setHours(0,0,0,0);
+                    const candidates=[];
+                    for(let d=1;d<=31;d++){
+                        const dt=new Date(yr,foundMo-1,d);
+                        if(dt.getMonth()!==foundMo-1) break;
+                        if(dt.getDay()===foundDow) candidates.push(d);
+                    }
+                    console.log('[Date] DOW search: mo='+foundMo+' dow='+foundDow+' candidates='+candidates);
+                    if(candidates.length>0){
+                        // Pick the candidate closest to (and >= ) today
+                        let best=candidates[0];
+                        for(const d of candidates){
+                            const dt=new Date(yr,foundMo-1,d);
+                            if(dt>=today){best=d;break;}
+                        }
+                        out.date=mkD(foundMo,best,yr);
+                        console.log('[Date] DOW resolved:',out.date);
+                    }
+                } else if(foundMo>0){
+                    // No DOW found — try scanning for a standalone digit near the month line
+                    for(let i=0;i<lines.length;i++){
+                        const mo=toMoFW(lines[i]);
+                        if(!mo||SKIP.test(lines[i])) continue;
+                        for(let j=i;j<=Math.min(i+10,lines.length-1);j++){
+                            if(j>i&&SKIP.test(lines[j])) continue;
+                            const dig=lines[j].replace(/[^0-9]/g,'');
+                            if(dig.length>=1&&dig.length<=2){const n=+dig;if(n>=1&&n<=31){const d=mkD(mo,n);if(d){out.date=d;break;}}}
+                        }
+                        if(out.date) break;
+                    }
                 }
             }
 
-            // SEATS — junk-filtered lines only
+            // SEATS — junk-filtered only
             const isJunk=l=>/https?:\/\/|\.com\b|\.net\b|\.org\b/i.test(l)||/[+()]{2,}/.test(l)||/^\s*[\(\[]/.test(l)||/\b\d{5,}\b/.test(l);
             const SEAT_RE=/\b([A-HJ-Z]-?\d{1,3})\b/g;
             const NO_SEAT=/^(PG|2D|3D|XL|ID)/i;
@@ -2974,6 +2966,7 @@
             const SKIP_TH=/\b(PG|PG-13|R\b|G\b|NR|AM|PM|Auditorium|Seat|Ticket|Confirm|Standard|Format|Luxury|Matinee|Add to|Apple|Google|Wallet|CINE)\b/i;
             const MONRE=new RegExp(MON,'i');
             const TSTRIP=/\s*\d{1,2}:\d{2}\s*(?:AM|PM)\s*$/i;
+            const isJunkTh=l=>isJunk(l)||l.length<4||l.length>70;
             for(const line of cleanLines){if(CHAIN.test(line)){out.theater=line.replace(TSTRIP,'').replace(/,.*$/,'').replace(/\b\d{4,}.*$/,'').trim();break;}}
             if(!out.theater){for(const line of cleanLines){if(/^\d/.test(line))continue;if(SKIP_TH.test(line)||MONRE.test(line))continue;if(/\b(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line))continue;if(/^[A-Z]/.test(line)){out.theater=line.replace(TSTRIP,'').replace(/,.*$/,'').trim();break;}}}
 
@@ -3050,16 +3043,13 @@
                         qrBox.style.display = 'block';
                         (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
                     } else {
-                        scannedQrBase64 = null;
-                        qrBox.style.display = 'none';
+                        scannedQrBase64 = null; qrBox.style.display = 'none';
                         const cropperImg = document.getElementById('ticket-cropper-img');
                         if(cropperImg){ cropperImg.src=ev.target.result; cropperImg.style.display='block'; cropperImg.style.maxWidth='100%';
                             if(cropperInstance) cropperInstance.destroy();
                             cropperInstance=new Cropper(cropperImg,{aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
                         } else { showToast("No barcode detected — fill in manually.",false); }
                     }
-
-                    // ── Step 2: Extract ticket details via OCR ──
                     try {
                         document.getElementById('ocr-status-bar').textContent = '🔍 Reading your ticket...';
                         const data = await analyzeTicketWithOCR(imgEl, barcodeText);
