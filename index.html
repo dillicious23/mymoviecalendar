@@ -3078,27 +3078,19 @@
                         qrBox.classList.remove('error');
                         qrStat.textContent = '✓ QR code detected automatically';
                         qrBox.style.display = 'block';
-                        document.getElementById('cropper-container').style.display = 'none';
+                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='none';})();
                     } else {
-                        // Fallback to manual cropper if barcode not found
                         scannedQrBase64 = null;
                         qrBox.style.display = 'none';
-                        document.getElementById('cropper-container').style.display = 'block';
-                        
+                        (function(){var e=document.getElementById('cropper-container');if(e)e.style.display='block';})();
                         const cropperImg = document.getElementById('ticket-cropper-img');
-                        cropperImg.src = ev.target.result;
-                        cropperImg.style.display = 'block';
-                        cropperImg.style.maxWidth = '100%';
-                        
-                        if(cropperInstance) cropperInstance.destroy();
-                        cropperInstance = new Cropper(cropperImg, {
-                            aspectRatio: 1,
-                            viewMode: 1,
-                            dragMode: 'move',
-                            autoCropArea: 0.6,
-                            background: false
-                        });
-                        showToast("Could not auto-detect barcode. Please box it manually.", true);
+                        if(cropperImg){
+                            cropperImg.src = ev.target.result;
+                            cropperImg.style.display = 'block';
+                            cropperImg.style.maxWidth = '100%';
+                            if(cropperInstance) cropperInstance.destroy();
+                            cropperInstance = new Cropper(cropperImg, {aspectRatio:1,viewMode:1,dragMode:'move',autoCropArea:0.6,background:false});
+                        }
                     }
 
                     // Resize for Gemini/OCR to keep payload small
