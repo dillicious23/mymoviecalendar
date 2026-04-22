@@ -1699,6 +1699,11 @@
             <!-- User Avatar (triggers Profile Tab) -->
             <img id="user-avatar" src="" alt="avatar" style="display: none;" title="Profile & Settings" onclick="openProfileDrawer()">
 
+            <!-- Notification bell -->
+            <button id="notif-btn" onclick="requestNotificationPermission()" title="Enable Notifications" style="background:transparent;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:0.3rem;line-height:1;position:relative;">
+                🔔<span id="notif-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--primary);color:#fff;font-size:0.55rem;font-weight:bold;border-radius:50%;width:13px;height:13px;display:none;align-items:center;justify-content:center;">!</span>
+            </button>
+
             <!-- Feed button -->
             <button id="feed-btn" onclick="openFeedModal()" title="Friend Feed" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;padding:0.3rem;display:none;line-height:1;">🌐</button>
 
@@ -2201,6 +2206,7 @@
 
         let pendingTokenResolve = null;
         let pendingTokenReject = null;
+        let _feedListener = null; // Firestore onSnapshot unsubscribe handle
 
         // ── Firebase state ──
         let currentUser = null;
@@ -2229,6 +2235,7 @@
                         await loadFromFirestore();
                         await loadFriends();
                         await loadPlans();
+                        startFeedNotificationListener();
                     }
                     renderFriendsTab();
                 });
@@ -2258,6 +2265,7 @@
         }
 
         async function firebaseSignOut() {
+            if (_feedListener) { _feedListener(); _feedListener = null; }
             await auth.signOut();
             currentUser = null;
             friends = [];
@@ -3428,6 +3436,8 @@
             try {
                 localStorage.setItem('movieWatchlist', JSON.stringify(watchlist));
                 localStorage.setItem('movieDiary', JSON.stringify(diary));
+                // Re-check notifications whenever data changes
+                scheduleWatchlistNotifications();
             } catch (e) {
                 if (e.name === 'QuotaExceededError' || e.code === 22) showToast(
                     'Storage full! Remove some photos or movies.', true);
@@ -3588,22 +3598,26 @@
             const endStr =
                 `${year}-${String(month+1).padStart(2,'0')}-${String(new Date(year,month+1,0).getDate()).padStart(2,'0')}`;
             try {
+                // Only wide US theatrical releases, English-language, high popularity
                 const url =
-                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=US&sort_by=release_date.asc&release_date.gte=${startStr}&release_date.lte=${endStr}&with_release_type=3&popularity.gte=20`;
+                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=US&sort_by=popularity.desc&release_date.gte=${startStr}&release_date.lte=${endStr}&with_release_type=3&with_original_language=en&vote_count.gte=10&popularity.gte=50`;
                 const response = await fetch(`${url}&page=1`);
                 const data = await response.json();
-                let movies = data.results;
+                let movies = data.results || [];
                 if (data.total_pages > 1) {
                     const fetches = [];
-                    for (let p = 2; p <= Math.min(data.total_pages, 10); p++) fetches.push(fetch(`${url}&page=${p}`)
+                    for (let p = 2; p <= Math.min(data.total_pages, 3); p++) fetches.push(fetch(`${url}&page=${p}`)
                         .then(r => r.json()));
                     const extra = await Promise.all(fetches);
                     extra.forEach(pd => {
                         if (pd.results) movies = [...movies, ...pd.results];
                     });
                 }
+                // Filter: must have poster, sort by release date ascending
                 movies = movies.filter(m => m.poster_path);
-                displayMovies(Array.from(new Map(movies.map(m => [m.id, m])).values()), false);
+                movies = Array.from(new Map(movies.map(m => [m.id, m])).values());
+                movies.sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''));
+                displayMovies(movies, false);
             } catch (err) {
                 container.innerHTML = `<div class="loading" style="color:#ff4444;">Error: ${err.message}</div>`;
             }
@@ -3759,7 +3773,7 @@
                 const olderDate = new Date();
                 olderDate.setFullYear(olderDate.getFullYear() - 3);
                 const url =
-                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=US&with_release_type=2|3|4&release_date.gte=${startStr}&release_date.lte=${endStr}&primary_release_date.lte=${olderDate.toISOString().split('T')[0]}&sort_by=popularity.desc`;
+                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=US&with_release_type=2|3|4&release_date.gte=${startStr}&release_date.lte=${endStr}&primary_release_date.lte=${olderDate.toISOString().split('T')[0]}&sort_by=popularity.desc&with_original_language=en&popularity.gte=30&vote_count.gte=500`;
                 const data = await (await fetch(url)).json();
                 const rereleases = data.results.filter(m => m.poster_path).slice(0, 10);
                 const section = document.getElementById('rerelease-section'),
@@ -4874,6 +4888,183 @@
             }
         }
 
+
+        // ==========================================
+        // 🔔 WEB PUSH NOTIFICATIONS
+        // ==========================================
+
+        // Register service worker inline via blob so no extra file is needed
+        async function registerNotificationSW() {
+            if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+            const swCode = `
+                self.addEventListener('notificationclick', e => {
+                    e.notification.close();
+                    e.waitUntil(clients.openWindow('/'));
+                });
+                self.addEventListener('message', e => {
+                    if (e.data && e.data.type === 'SHOW_NOTIFICATION') {
+                        self.registration.showNotification(e.data.title, e.data.options);
+                    }
+                });
+            `;
+            try {
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                const reg = await navigator.serviceWorker.register(swUrl, { scope: '/' });
+                window._swReg = reg;
+                console.log('[SW] Registered');
+            } catch (e) {
+                console.warn('[SW] Registration failed:', e);
+            }
+        }
+
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                return showToast('Notifications not supported in this browser.', true);
+            }
+            if (Notification.permission === 'granted') {
+                showToast('Notifications already enabled! ✅');
+                updateNotifBtn();
+                scheduleWatchlistNotifications();
+                return;
+            }
+            if (Notification.permission === 'denied') {
+                return showToast('Notifications blocked — please enable them in your browser settings.', true);
+            }
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                showToast('Notifications enabled! 🔔 You\'ll be reminded about upcoming movies.');
+                updateNotifBtn();
+                scheduleWatchlistNotifications();
+                // Send a welcome notification
+                sendNotification('🍿 Movie Tracker', {
+                    body: 'You\'ll now get reminders when your watchlist movies are releasing!',
+                    icon: 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'192\' height=\'192\'><rect width=\'192\' height=\'192\' fill=\'%23e50914\' rx=\'48\'/><text x=\'50%25\' y=\'50%25\' fill=\'white\' font-size=\'80\' dominant-baseline=\'middle\' text-anchor=\'middle\'>🍿</text></svg>',
+                    badge: 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'96\' height=\'96\'><rect width=\'96\' height=\'96\' fill=\'%23e50914\' rx=\'24\'/></svg>',
+                    tag: 'welcome'
+                });
+            } else {
+                showToast('Notifications permission denied.', true);
+            }
+        }
+
+        function sendNotification(title, options = {}) {
+            if (Notification.permission !== 'granted') return;
+            if (window._swReg && window._swReg.active) {
+                window._swReg.active.postMessage({ type: 'SHOW_NOTIFICATION', title, options });
+            } else {
+                // Fallback: direct Notification API
+                try { new Notification(title, options); } catch(e) {}
+            }
+        }
+
+        function updateNotifBtn() {
+            const btn   = document.getElementById('notif-btn');
+            const badge = document.getElementById('notif-badge');
+            if (!btn) return;
+            if (!('Notification' in window) || Notification.permission === 'denied') {
+                btn.style.opacity = '0.4';
+                btn.title = 'Notifications blocked in browser settings';
+                if (badge) badge.style.display = 'none';
+            } else if (Notification.permission === 'granted') {
+                btn.style.opacity = '1';
+                btn.title = 'Notifications enabled ✅';
+                btn.innerHTML = '🔔';
+                if (badge) badge.style.display = 'none';
+            } else {
+                btn.style.opacity = '1';
+                btn.title = 'Tap to enable movie notifications';
+                // Show a pulsing badge to invite the user to enable
+                if (badge) { badge.style.display = 'flex'; }
+            }
+        }
+
+        // Check watchlist and schedule browser notifications for movies releasing soon
+        function scheduleWatchlistNotifications() {
+            if (Notification.permission !== 'granted') return;
+            const today     = new Date(); today.setHours(0,0,0,0);
+            const tomorrow  = new Date(today); tomorrow.setDate(today.getDate() + 1);
+            const in7       = new Date(today); in7.setDate(today.getDate() + 7);
+
+            watchlist.forEach(movie => {
+                if (!movie.releaseDate) return;
+                const rd = new Date(movie.releaseDate);
+                rd.setMinutes(rd.getMinutes() + rd.getTimezoneOffset()); // fix tz
+                const rdDate = new Date(rd); rdDate.setHours(0,0,0,0);
+
+                // Notify if releasing today
+                if (rdDate.getTime() === today.getTime()) {
+                    sendNotification(`🍿 "${movie.title}" is out TODAY!`, {
+                        body: 'It\'s on your watchlist — time to go see it!',
+                        tag: `release-today-${movie.id}`,
+                        icon: movie.posterPath ? `https://image.tmdb.org/t/p/w92${movie.posterPath}` : undefined
+                    });
+                }
+                // Notify if releasing tomorrow
+                else if (rdDate.getTime() === tomorrow.getTime()) {
+                    sendNotification(`🎬 "${movie.title}" releases TOMORROW`, {
+                        body: 'Your watchlist movie hits theaters tomorrow!',
+                        tag: `release-tomorrow-${movie.id}`,
+                        icon: movie.posterPath ? `https://image.tmdb.org/t/p/w92${movie.posterPath}` : undefined
+                    });
+                }
+                // Notify if releasing in exactly 7 days
+                else if (rdDate.getTime() === in7.getTime()) {
+                    sendNotification(`📅 "${movie.title}" — 1 week away`, {
+                        body: 'One week until this movie on your watchlist is in theaters!',
+                        tag: `release-week-${movie.id}`,
+                        icon: movie.posterPath ? `https://image.tmdb.org/t/p/w92${movie.posterPath}` : undefined
+                    });
+                }
+            });
+        }
+
+
+        // ==========================================
+        // 🔔 FRIEND ACTIVITY NOTIFICATIONS
+        // ==========================================
+        function startFeedNotificationListener() {
+            if (!currentUser || !firebaseReady) return;
+            // Detach any previous listener first
+            if (_feedListener) { _feedListener(); _feedListener = null; }
+
+            // Only look at posts newer than right now so we don't notify for old history
+            const listenFrom = firebase.firestore.Timestamp.now();
+
+            _feedListener = db.collection('social_feed')
+                .where('timestamp', '>', listenFrom)
+                .orderBy('timestamp', 'desc')
+                .onSnapshot(snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type !== 'added') return;
+                        const post = change.doc.data();
+
+                        // Skip our own posts
+                        if (post.userId === currentUser.uid) return;
+
+                        // Only notify for people we follow
+                        const isFriend = friends.some(f => f.uid === post.userId);
+                        if (!isFriend) return;
+
+                        const name   = post.userName || 'A friend';
+                        const movie  = post.movieTitle || 'a movie';
+                        const rating = parseFloat(post.rating) || 0;
+                        const stars  = rating > 0 ? ` — ★ ${rating.toFixed(1)}` : '';
+
+                        sendNotification(`🎬 ${name} just logged a movie`, {
+                            body: `"${movie}"${stars}`,
+                            tag:  `friend-log-${change.doc.id}`,
+                            icon: post.posterPath && post.posterPath !== 'null'
+                                ? `https://image.tmdb.org/t/p/w92${post.posterPath}`
+                                : undefined,
+                            badge: 'data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%23e50914' rx='24'/></svg>',
+                        });
+                    });
+                }, err => {
+                    console.warn('[FeedListener] error:', err);
+                });
+        }
+
         // INITIALIZE
         // ==========================================
         window.onload = () => {
@@ -4887,6 +5078,10 @@
             initGoogleAuth();
             initFirebase(); // 🔥 Initialize Firebase last
             updateOnlineStatus(); // check connectivity on load
+            registerNotificationSW(); // register SW for notifications
+            updateNotifBtn(); // set correct bell state
+            // Check watchlist notifications on load (after small delay for data to settle)
+            setTimeout(scheduleWatchlistNotifications, 2000);
         };
     </script>
 </body>
