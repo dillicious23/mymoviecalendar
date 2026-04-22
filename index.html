@@ -3616,7 +3616,7 @@
             try {
                 // Only wide US theatrical releases, English-language, high popularity
                 const url =
-                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=US&sort_by=popularity.desc&release_date.gte=${startStr}&release_date.lte=${endStr}&with_release_type=3&with_original_language=en&vote_count.gte=10&popularity.gte=50`;
+                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=en-US&region=US&sort_by=popularity.desc&release_date.gte=${startStr}&release_date.lte=${endStr}&with_release_type=3&with_original_language=en&popularity.gte=5`;
                 const response = await fetch(`${url}&page=1`);
                 const data = await response.json();
                 let movies = data.results || [];
@@ -3789,7 +3789,7 @@
                 const olderDate = new Date();
                 olderDate.setFullYear(olderDate.getFullYear() - 3);
                 const url =
-                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=US&with_release_type=2|3|4&release_date.gte=${startStr}&release_date.lte=${endStr}&primary_release_date.lte=${olderDate.toISOString().split('T')[0]}&sort_by=popularity.desc&with_original_language=en&popularity.gte=30&vote_count.gte=500`;
+                    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&region=US&with_release_type=2|3|4&release_date.gte=${startStr}&release_date.lte=${endStr}&primary_release_date.lte=${olderDate.toISOString().split('T')[0]}&sort_by=popularity.desc&with_original_language=en&popularity.gte=10`;
                 const data = await (await fetch(url)).json();
                 const rereleases = data.results.filter(m => m.poster_path).slice(0, 10);
                 const section = document.getElementById('rerelease-section'),
