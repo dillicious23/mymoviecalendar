@@ -3629,8 +3629,20 @@
                         if (pd.results) movies = [...movies, ...pd.results];
                     });
                 }
-                // Filter: must have poster, sort by release date ascending
-                movies = movies.filter(m => m.poster_path);
+                const monthPrefix = `${year}-${String(month+1).padStart(2,'0')}`;
+                const threeYearsAgo = new Date();
+                threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+
+                movies = movies.filter(m => {
+                    if (!m.poster_path) return false;
+                    // Must have a release date in the selected month
+                    if (!m.release_date || !m.release_date.startsWith(monthPrefix)) return false;
+                    // Must be a genuinely new release - exclude anything older than 3 years
+                    // (those should only appear in the Classic Rereleases section)
+                    const primaryDate = new Date(m.release_date);
+                    if (primaryDate < threeYearsAgo) return false;
+                    return true;
+                });
                 movies = Array.from(new Map(movies.map(m => [m.id, m])).values());
                 movies.sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''));
                 displayMovies(movies, false);
