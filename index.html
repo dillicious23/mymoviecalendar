@@ -3259,28 +3259,34 @@
             if(independentTickets.length === 0) {
                 ticketsContainer.innerHTML = '<div style="color:#666; font-size: 0.85rem;">No tickets saved. Find a movie and click "Save Ticket" to add one!</div>';
             } else {
-                ticketsContainer.innerHTML = independentTickets.map(t => {
+                ticketsContainer.innerHTML = '';
+                independentTickets.forEach(t => {
                     const img = (t.posterPath && t.posterPath !== 'null') ? `https://image.tmdb.org/t/p/w200${t.posterPath}` : PLACEHOLDER_IMG;
-                    
-                    return `
-                    <div class="ticket">
-                        <button class="remove-btn" style="position: absolute; top: -10px; left: -10px; z-index: 10; width: 28px; height: 28px; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.5);" onclick="deleteTicket('${t.id}')" title="Delete Ticket">×</button>
+                    const wrap = document.createElement('div');
+                    wrap.className = 'ticket';
+                    wrap.innerHTML = `
+                        <button class="remove-btn" style="position:absolute;top:-10px;left:-10px;z-index:10;width:28px;height:28px;font-size:1rem;box-shadow:0 2px 4px rgba(0,0,0,0.5);" onclick="deleteTicket('${t.id}')" title="Delete Ticket">×</button>
                         <div class="ticket-info">
                             <img src="${img}" alt="${escHtml(t.title)}">
                             <div class="ticket-details">
                                 <h4 title="${escHtml(t.title)}">${escHtml(t.title)}</h4>
-                                <p style="color:var(--primary); margin-bottom: 2px;">${escHtml(t.theater)}</p>
+                                <p style="color:var(--primary);margin-bottom:2px;">${escHtml(t.theater)}</p>
                                 <p>${formatDateMDY(t.date)} at ${formatTimeAMPM(t.time)}</p>
-                                ${t.seats ? `<p style="color:#888; font-size:0.75rem; margin-top:2px;">Seats: ${escHtml(t.seats)}</p>` : ''}
+                                ${t.seats ? `<p style="color:#888;font-size:0.75rem;margin-top:2px;">Seats: ${escHtml(t.seats)}</p>` : ''}
                             </div>
                         </div>
                         <div class="ticket-qr">
-                            <span style="font-size: 0.65rem; color:#888; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Scan Entry</span>
-                            <img src="${t.qr}" alt="QR Code" onclick="enlargeQR('${t.qr}')">
-                        </div>
-                    </div>
-                    `;
-                }).join('');
+                            <span style="font-size:0.65rem;color:#888;font-weight:bold;margin-bottom:4px;text-transform:uppercase;">Scan Entry</span>
+                            <img id="qr-img-${t.id}" alt="QR Code" style="cursor:pointer;">
+                        </div>`;
+                    // Set QR src via property to avoid attribute truncation of large base64
+                    const qrImg = wrap.querySelector(`#qr-img-${t.id}`);
+                    if (qrImg && t.qr) {
+                        qrImg.src = t.qr;
+                        qrImg.onclick = () => enlargeQR(t.qr);
+                    }
+                    ticketsContainer.appendChild(wrap);
+                });
             }
             
             // Render Plans
@@ -3302,26 +3308,14 @@
                         // Gather tickets for this plan! (Both mine and friends)
                         const relatedTickets = allTickets.filter(t => String(t.planId) === String(p.id));
                         
+                        const miniTicketQrMap = {};
                         let ticketsHtml = '';
                         if(relatedTickets.length > 0) {
-                            ticketsHtml = `
-                                <div class="plan-tickets-area">
-                                    ${relatedTickets.map(t => `
-                                        <div class="mini-ticket">
-                                            ${t.addedBy === 'You' ? `<button class="remove-btn" style="position:absolute; top:-5px; left:-5px; width:20px; height:20px; font-size:0.8rem; z-index:5;" onclick="deleteTicket('${t.id}')">×</button>` : ''}
-                                            <img src="${t.qr}" onclick="enlargeQR('${t.qr}')" title="View Ticket">
-                                            <div style="font-size:0.7rem; color:#444; display:flex; flex-direction:column; justify-content:center; line-height:1.2;">
-                                                <b>Ticket</b>
-                                                ${t.seats ? `<span style="font-size:0.65rem; color:var(--gold);">${escHtml(t.seats)}</span>` : ''}
-                                                <span style="display:flex; align-items:center; gap:4px; margin-top:2px;">
-                                                    <img src="${t.addedByAvatar}" style="width:12px; height:12px; border-radius:50%; margin:0; cursor:default;">
-                                                    ${escHtml(t.addedBy)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            `;
+                            ticketsHtml = `<div class="plan-tickets-area" id="mini-tickets-${p.id}"></div>`;
+                            // QRs are populated after innerHTML is set below, via DOM
+                            relatedTickets.forEach((t, ti) => {
+                                miniTicketQrMap[`mini-qr-${p.id}-${ti}`] = t.qr;
+                            });
                         }
                         
                         // Dropdown linking logic
@@ -3381,6 +3375,35 @@
                         </div>
                         `;
                     }).join('');
+
+                    // Post-pass: populate mini-ticket QR images via DOM (base64 can't go in innerHTML attributes)
+                    upcomingPlans.forEach(p => {
+                        const area = document.getElementById(`mini-tickets-${p.id}`);
+                        if (!area) return;
+                        const relatedTickets = allTickets.filter(t => String(t.planId) === String(p.id));
+                        relatedTickets.forEach((t, ti) => {
+                            const mini = document.createElement('div');
+                            mini.className = 'mini-ticket';
+                            mini.style.position = 'relative';
+                            mini.innerHTML = `
+                                ${t.addedBy === 'You' ? `<button class="remove-btn" style="position:absolute;top:-5px;left:-5px;width:20px;height:20px;font-size:0.8rem;z-index:5;" onclick="deleteTicket('${t.id}')">×</button>` : ''}
+                                <img id="mini-qr-${p.id}-${ti}" style="width:35px;height:35px;border-radius:4px;cursor:pointer;" title="View Ticket">
+                                <div style="font-size:0.7rem;color:#444;display:flex;flex-direction:column;justify-content:center;line-height:1.2;">
+                                    <b>Ticket</b>
+                                    ${t.seats ? `<span style="font-size:0.65rem;color:var(--gold);">${escHtml(t.seats)}</span>` : ''}
+                                    <span style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+                                        <img src="${t.addedByAvatar}" style="width:12px;height:12px;border-radius:50%;margin:0;cursor:default;">
+                                        ${escHtml(t.addedBy)}
+                                    </span>
+                                </div>`;
+                            const qrImg = mini.querySelector(`#mini-qr-${p.id}-${ti}`);
+                            if (qrImg && t.qr) {
+                                qrImg.src = t.qr;
+                                qrImg.onclick = () => enlargeQR(t.qr);
+                            }
+                            area.appendChild(mini);
+                        });
+                    });
                 }
             }
         }
@@ -4736,7 +4759,7 @@
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-                            <img src="${posterUrl}" style="width:38px;height:57px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.src='${PLACEHOLDER_IMG}'">
+                            <img src="${posterUrl}" style="width:46px;height:69px;border-radius:4px;object-fit:cover;flex-shrink:0;background:#333;" onerror="this.src='${PLACEHOLDER_IMG}'">
                             <div>
                                 <div style="color:#aaa;font-size:0.8rem;">Logged</div>
                                 <div style="color:#fff;font-weight:bold;font-size:0.95rem;">${escHtml(post.movieTitle || 'a movie')}</div>
