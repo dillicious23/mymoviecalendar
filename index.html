@@ -1699,6 +1699,9 @@
             <!-- User Avatar (triggers Profile Tab) -->
             <img id="user-avatar" src="" alt="avatar" style="display: none;" title="Profile & Settings" onclick="openProfileDrawer()">
 
+            <!-- Feed button -->
+            <button id="feed-btn" onclick="openFeedModal()" title="Friend Feed" style="background:transparent;border:none;color:#fff;font-size:1.3rem;cursor:pointer;padding:0.3rem;display:none;line-height:1;">🌐</button>
+
             <!-- Menu button -->
             <button id="watchlist-toggle-btn" class="btn btn-header">
                 <span class="hide-on-mobile">Menu</span>
@@ -1756,7 +1759,6 @@
             <button class="tab-btn" onclick="switchDrawerTab('diary', event)">Diary</button>
             <button class="tab-btn" onclick="switchDrawerTab('plans', event)">Plans & Tickets</button>
             <button class="tab-btn" onclick="switchDrawerTab('friends', event)">Friends</button>
-            <button class="tab-btn" onclick="switchDrawerTab('feed', event)">🌐 Feed</button>
             <button class="tab-btn" onclick="switchDrawerTab('profile', event)">Profile</button>
         </div>
 
@@ -1784,13 +1786,6 @@
             <div id="tab-friends" class="tab-content">
                 <div id="friends-tab-inner">
                     <!-- Content rendered by renderFriendsTab() -->
-                </div>
-            </div>
-
-            <!-- FEED TAB -->
-            <div id="tab-feed" class="tab-content">
-                <div id="feed-tab-inner">
-                    <!-- Content rendered by renderFeedTab() -->
                 </div>
             </div>
 
@@ -1907,6 +1902,20 @@
             <button id="sync-btn" class="btn sync-btn" disabled>Sync to Calendar</button>
             <p id="sync-status" style="text-align: center; margin-top: 1rem; font-size: 0.9rem; min-height: 1.2rem;">
             </p>
+        </div>
+    </div>
+
+
+    <!-- Feed Modal -->
+    <div id="feed-modal" class="modal-backdrop">
+        <div class="modal-content" style="max-width:520px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+            <div style="background:#000;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #222;flex-shrink:0;">
+                <h2 style="margin:0;font-size:1.3rem;">🌐 Friend Feed</h2>
+                <button class="modal-close" onclick="closeModal('feed-modal')" style="position:static;width:30px;height:30px;">&times;</button>
+            </div>
+            <div id="feed-modal-inner" style="overflow-y:auto;padding:1.2rem;flex:1;">
+                <div style="text-align:center;color:#aaa;padding:2rem;">Loading…</div>
+            </div>
         </div>
     </div>
 
@@ -2267,11 +2276,13 @@
             const syncInd = document.getElementById('sync-indicator');
             const profileAcct = document.getElementById('profile-account-section');
 
+            const feedBtn = document.getElementById('feed-btn');
             if (user) {
                 signinBtn.style.display = 'none';
                 avatarEl.style.display = 'block';
                 syncInd.style.display = 'flex';
                 avatarEl.src = user.photoURL || '';
+                if (feedBtn) feedBtn.style.display = 'block';
                 
                 if(profileAcct) {
                     profileAcct.style.display = 'flex';
@@ -2283,6 +2294,7 @@
                 signinBtn.style.display = 'block';
                 avatarEl.style.display = 'none';
                 syncInd.style.display = 'none';
+                if (feedBtn) feedBtn.style.display = 'none';
                 
                 if(profileAcct) {
                     profileAcct.style.display = 'none';
@@ -3495,7 +3507,6 @@
                 renderAmcStubs();
             }
             if (tabName === 'friends') renderFriendsTab();
-            if (tabName === 'feed') renderFeedTab();
             if (tabName === 'plans') {
                 loadPlans(); // refresh plans
                 renderPlansAndTickets();
@@ -4666,8 +4677,13 @@
             return 'Just now';
         }
 
-        async function renderFeedTab() {
-            const container = document.getElementById('feed-tab-inner');
+        function openFeedModal() {
+            openModal('feed-modal');
+            renderFeedTab('feed-modal-inner');
+        }
+
+        async function renderFeedTab(targetId) {
+            const container = document.getElementById(targetId || 'feed-modal-inner');
             if (!container) return;
             if (!currentUser) {
                 container.innerHTML = `
@@ -4680,14 +4696,14 @@
                     </div>`;
                 return;
             }
-            container.innerHTML = '<div style="text-align:center;color:#aaa;padding:2rem;">Loading feed\u2026</div>';
+            container.innerHTML = '<div style="text-align:center;color:#aaa;padding:2rem;">Loading feed…</div>';
             try {
                 const snap = await db.collection('social_feed')
                     .orderBy('timestamp', 'desc')
                     .limit(40)
                     .get();
                 if (snap.empty) {
-                    container.innerHTML = '<div style="text-align:center;color:#555;padding:3rem 1rem;">It\'s quiet here.<br>Log a movie to appear in the feed! \U0001f37f</div>';
+                    container.innerHTML = '<div style="text-align:center;color:#555;padding:3rem 1rem;">It\'s quiet here.<br>Log a movie to appear in the feed! 🍿</div>';
                     return;
                 }
                 container.innerHTML = '';
@@ -4701,9 +4717,9 @@
                         : PLACEHOLDER_IMG;
                     const avatarHtml = (post.userAvatar && post.userAvatar !== '')
                         ? `<img src="${escHtml(post.userAvatar)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #333;" onerror="this.style.display='none'">`
-                        : `<div style="width:36px;height:36px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:1rem;">\U0001f3ac</div>`;
+                        : `<div style="width:36px;height:36px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:1rem;">🎬</div>`;
                     const starsHtml = rating > 0
-                        ? `<span style="color:var(--gold);font-weight:bold;font-size:0.9rem;">\u2605 ${rating.toFixed(1)}</span>`
+                        ? `<span style="color:var(--gold);font-weight:bold;font-size:0.9rem;">★ ${rating.toFixed(1)}</span>`
                         : '';
                     const reactionVals = Object.values(reactions);
                     const reactionHtml = reactionVals.length > 0
@@ -4728,7 +4744,7 @@
                             </div>
                         </div>
                         <div style="border-top:1px solid #2a2a2a;padding-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                            ${['\U0001f525','\U0001f440','\U0001f37f','\U0001f4af'].map(e =>
+                            ${['🔥','👀','🍿','💯'].map(e =>
                                 `<button onclick="reactToFeedPost('${docId}','${e}')" style="background:#2b2b2b;border:1px solid #444;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">${e}</button>`
                             ).join('')}
                             <div style="margin-left:auto;">${reactionHtml}</div>
@@ -4756,7 +4772,7 @@
             let monthlyStubs = 21.99;
 
             function doRender(label) {
-                if (locLabel) locLabel.textContent = '\U0001f4cd ' + label;
+                if (locLabel) locLabel.textContent = '📍 ' + label;
                 const annualStubs = monthlyStubs * 12;
                 const curYear     = new Date().getFullYear();
                 let seen = 0, planned = 0;
@@ -4779,7 +4795,7 @@
                 const moviesNeeded = Math.max(0, breakEven - total);
                 const fmt = n => '$' + n.toFixed(2);
                 body.innerHTML = `
-                    <div style="text-align:center;color:#555;font-size:0.68rem;letter-spacing:1px;margin-bottom:14px;">BASED ON ${label.toUpperCase()} PRICING \u2014 $${ticketPrice.toFixed(2)}/TICKET</div>
+                    <div style="text-align:center;color:#555;font-size:0.68rem;letter-spacing:1px;margin-bottom:14px;">BASED ON ${label.toUpperCase()} PRICING — $${ticketPrice.toFixed(2)}/TICKET</div>
                     <div style="display:flex;justify-content:space-evenly;text-align:center;margin-bottom:16px;">
                         <div>
                             <div style="color:#666;font-size:0.65rem;font-weight:bold;letter-spacing:1px;">SEEN</div>
@@ -4805,7 +4821,7 @@
                         <span style="color:#fff;font-weight:bold;">${fmt(annualStubs)}</span>
                     </div>
                     <div style="background:${isWorthIt ? 'rgba(52,168,83,0.1)' : 'rgba(245,197,24,0.08)'};border:1px solid ${isWorthIt ? '#34A853' : '#f5c518'};border-radius:8px;padding:12px;display:flex;align-items:flex-start;gap:10px;">
-                        <span style="font-size:1.3rem;flex-shrink:0;">${isWorthIt ? '\u2705' : '\u2139\ufe0f'}</span>
+                        <span style="font-size:1.3rem;flex-shrink:0;">${isWorthIt ? '✅' : 'ℹ️'}</span>
                         <div>
                             <div style="color:${isWorthIt ? '#34A853' : '#f5c518'};font-size:0.72rem;font-weight:bold;letter-spacing:1px;">${isWorthIt ? 'WORTH IT!' : 'NOT QUITE YET'}</div>
                             <div style="color:#ddd;font-size:0.82rem;margin-top:3px;">${isWorthIt
@@ -4816,7 +4832,7 @@
             }
 
             if (navigator.geolocation) {
-                if (locLabel) locLabel.textContent = '\U0001f4cd Detecting\u2026';
+                if (locLabel) locLabel.textContent = '📍 Detecting…';
                 navigator.geolocation.getCurrentPosition(pos => {
                     fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
                         .then(r => r.json())
