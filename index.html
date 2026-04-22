@@ -4938,9 +4938,7 @@
                 scheduleWatchlistNotifications();
                 // Send a welcome notification
                 sendNotification('🍿 Movie Tracker', {
-                    body: 'You\'ll now get reminders when your watchlist movies are releasing!',
-                    icon: 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'192\' height=\'192\'><rect width=\'192\' height=\'192\' fill=\'%23e50914\' rx=\'48\'/><text x=\'50%25\' y=\'50%25\' fill=\'white\' font-size=\'80\' dominant-baseline=\'middle\' text-anchor=\'middle\'>🍿</text></svg>',
-                    badge: 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'96\' height=\'96\'><rect width=\'96\' height=\'96\' fill=\'%23e50914\' rx=\'24\'/></svg>',
+                    body: "You'll now get reminders when your watchlist movies are releasing!",
                     tag: 'welcome'
                 });
             } else {
@@ -5054,10 +5052,9 @@
                         sendNotification(`🎬 ${name} just logged a movie`, {
                             body: `"${movie}"${stars}`,
                             tag:  `friend-log-${change.doc.id}`,
-                            icon: post.posterPath && post.posterPath !== 'null'
+                            icon: (post.posterPath && post.posterPath !== 'null')
                                 ? `https://image.tmdb.org/t/p/w92${post.posterPath}`
                                 : undefined,
-                            badge: 'data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%23e50914' rx='24'/></svg>',
                         });
                     });
                 }, err => {
