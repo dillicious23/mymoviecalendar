@@ -1708,6 +1708,11 @@
         </div>
     </header>
 
+    <!-- Offline Banner -->
+    <div id="offline-banner" style="display:none; background: #e50914; color: white; text-align: center; padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: bold; position: sticky; top: 57px; z-index: 99; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+        📶 Offline Mode — Changes will sync when you reconnect
+    </div>
+
     <main class="container">
         <section class="movies-section">
             <div id="upcoming-movie-box" style="display: none;"></div>
@@ -1751,6 +1756,7 @@
             <button class="tab-btn" onclick="switchDrawerTab('diary', event)">Diary</button>
             <button class="tab-btn" onclick="switchDrawerTab('plans', event)">Plans & Tickets</button>
             <button class="tab-btn" onclick="switchDrawerTab('friends', event)">Friends</button>
+            <button class="tab-btn" onclick="switchDrawerTab('feed', event)">🌐 Feed</button>
             <button class="tab-btn" onclick="switchDrawerTab('profile', event)">Profile</button>
         </div>
 
@@ -1778,6 +1784,13 @@
             <div id="tab-friends" class="tab-content">
                 <div id="friends-tab-inner">
                     <!-- Content rendered by renderFriendsTab() -->
+                </div>
+            </div>
+
+            <!-- FEED TAB -->
+            <div id="tab-feed" class="tab-content">
+                <div id="feed-tab-inner">
+                    <!-- Content rendered by renderFeedTab() -->
                 </div>
             </div>
 
@@ -1869,6 +1882,19 @@
                     </div>
                     <button class="btn btn-outline" style="width:100%; margin-top: 0.5rem;" onclick="saveApiKey()">Save API Key</button>
                 </div>
+
+                <!-- AMC STUBS CALCULATOR -->
+                <div id="amc-stubs-section" style="background: #121212; border: 1.5px solid var(--primary); border-radius: 16px; margin-top: 1.5rem; overflow: hidden; box-shadow: 0 8px 20px rgba(229,9,20,0.15);">
+                    <div style="background: var(--primary); padding: 12px 16px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.1rem;">🎭</span>
+                        <span style="font-weight: 900; letter-spacing: 1.5px; font-size: 0.75rem;">AMC STUBS A-LIST CALCULATOR</span>
+                        <span style="margin-left: auto; font-size: 0.7rem; opacity: 0.85;" id="amc-location-label">📍 Detecting...</span>
+                    </div>
+                    <div style="padding: 20px;" id="amc-body">
+                        <div style="text-align:center; color:#555; font-size:0.85rem; padding: 1rem;">Loading your stats...</div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -3466,8 +3492,10 @@
             if (tabName === 'profile') {
                 populateYearSelector();
                 renderStats();
+                renderAmcStubs();
             }
             if (tabName === 'friends') renderFriendsTab();
+            if (tabName === 'feed') renderFeedTab();
             if (tabName === 'plans') {
                 loadPlans(); // refresh plans
                 renderPlansAndTickets();
@@ -4004,6 +4032,7 @@
                 saveData();
                 syncWatchlistToFirestore();
                 saveDiaryEntryToFirestore(entry);
+                postToSocialFeed(entry); // broadcast to friend feed
                 updateListsUI();
                 closeModal('rating-modal');
                 showToast(`Logged ${pendingRatingMovie.title}!`);
@@ -4568,6 +4597,244 @@
         document.getElementById('sync-btn').addEventListener('click', () => syncUnsyncedMovies(false));
 
         // ==========================================
+
+        // ==========================================
+        // 📶 OFFLINE / CONNECTIVITY DETECTION
+        // ==========================================
+        function updateOnlineStatus() {
+            const banner = document.getElementById('offline-banner');
+            const dot = document.querySelector('.sync-dot');
+            const label = document.querySelector('.sync-label');
+            if (!banner) return;
+            if (navigator.onLine) {
+                banner.style.display = 'none';
+                if (dot) dot.style.background = '#34A853';
+                if (label) label.textContent = 'Synced';
+            } else {
+                banner.style.display = 'block';
+                if (dot) dot.style.background = '#e50914';
+                if (label) label.textContent = 'Offline';
+            }
+        }
+        window.addEventListener('online',  updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // ==========================================
+        // 🌐 SOCIAL FEED
+        // ==========================================
+        async function postToSocialFeed(entry) {
+            if (!currentUser || !firebaseReady) return;
+            try {
+                await db.collection('social_feed').add({
+                    userId:     currentUser.uid,
+                    userName:   currentUser.displayName || 'Movie Fan',
+                    userAvatar: currentUser.photoURL || '',
+                    movieTitle: entry.title,
+                    posterPath: entry.posterPath || '',
+                    rating:     entry.rating,
+                    timestamp:  firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) {
+                console.warn('Social feed post failed:', err);
+            }
+        }
+
+        async function reactToFeedPost(docId, emoji) {
+            if (!currentUser || !firebaseReady) return showToast('Sign in to react!', true);
+            try {
+                const key = currentUser.displayName || currentUser.uid;
+                await db.collection('social_feed').doc(docId).set(
+                    { reactions: { [key]: emoji } },
+                    { merge: true }
+                );
+                renderFeedTab();
+            } catch (err) { console.warn('Reaction failed:', err); }
+        }
+
+        function timeAgo(ts) {
+            if (!ts) return '';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            const diff = Date.now() - d.getTime();
+            const mins = Math.floor(diff / 60000);
+            const hrs  = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            if (days > 365) return Math.floor(days/365) + 'y ago';
+            if (days > 30)  return Math.floor(days/30)  + 'mo ago';
+            if (days > 0)   return days + 'd ago';
+            if (hrs  > 0)   return hrs  + 'h ago';
+            if (mins > 0)   return mins + 'm ago';
+            return 'Just now';
+        }
+
+        async function renderFeedTab() {
+            const container = document.getElementById('feed-tab-inner');
+            if (!container) return;
+            if (!currentUser) {
+                container.innerHTML = `
+                    <div class="signin-prompt">
+                        <p>🌐 Sign in to see what your friends are watching.</p>
+                        <button onclick="firebaseSignIn()">
+                            <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+                            Sign in with Google
+                        </button>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = '<div style="text-align:center;color:#aaa;padding:2rem;">Loading feed\u2026</div>';
+            try {
+                const snap = await db.collection('social_feed')
+                    .orderBy('timestamp', 'desc')
+                    .limit(40)
+                    .get();
+                if (snap.empty) {
+                    container.innerHTML = '<div style="text-align:center;color:#555;padding:3rem 1rem;">It\'s quiet here.<br>Log a movie to appear in the feed! \U0001f37f</div>';
+                    return;
+                }
+                container.innerHTML = '';
+                snap.forEach(doc => {
+                    const post  = doc.data();
+                    const docId = doc.id;
+                    const reactions = post.reactions || {};
+                    const rating    = parseFloat(post.rating) || 0;
+                    const posterUrl = (post.posterPath && post.posterPath !== 'null')
+                        ? 'https://image.tmdb.org/t/p/w92' + post.posterPath
+                        : PLACEHOLDER_IMG;
+                    const avatarHtml = (post.userAvatar && post.userAvatar !== '')
+                        ? `<img src="${escHtml(post.userAvatar)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid #333;" onerror="this.style.display='none'">`
+                        : `<div style="width:36px;height:36px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:1rem;">\U0001f3ac</div>`;
+                    const starsHtml = rating > 0
+                        ? `<span style="color:var(--gold);font-weight:bold;font-size:0.9rem;">\u2605 ${rating.toFixed(1)}</span>`
+                        : '';
+                    const reactionVals = Object.values(reactions);
+                    const reactionHtml = reactionVals.length > 0
+                        ? `<span style="font-size:1rem;">${reactionVals.join(' ')}</span><span style="color:#666;font-size:0.75rem;margin-left:4px;">(${reactionVals.length})</span>`
+                        : '';
+                    const card = document.createElement('div');
+                    card.style.cssText = 'background:#1e1e1e;border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid #2a2a2a;';
+                    card.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                            ${avatarHtml}
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:bold;color:#fff;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(post.userName || 'Movie Fan')}</div>
+                                <div style="color:#666;font-size:0.75rem;">${timeAgo(post.timestamp)}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                            <img src="${posterUrl}" style="width:38px;height:57px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.src='${PLACEHOLDER_IMG}'">
+                            <div>
+                                <div style="color:#aaa;font-size:0.8rem;">Logged</div>
+                                <div style="color:#fff;font-weight:bold;font-size:0.95rem;">${escHtml(post.movieTitle || 'a movie')}</div>
+                                ${starsHtml}
+                            </div>
+                        </div>
+                        <div style="border-top:1px solid #2a2a2a;padding-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            ${['\U0001f525','\U0001f440','\U0001f37f','\U0001f4af'].map(e =>
+                                `<button onclick="reactToFeedPost('${docId}','${e}')" style="background:#2b2b2b;border:1px solid #444;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">${e}</button>`
+                            ).join('')}
+                            <div style="margin-left:auto;">${reactionHtml}</div>
+                        </div>`;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error('Feed load error:', err);
+                container.innerHTML = '<div style="text-align:center;color:#e50914;padding:2rem;">Could not load feed.<br><small>Check your connection.</small></div>';
+            }
+        }
+
+        // ==========================================
+        // 🎭 AMC STUBS A-LIST CALCULATOR
+        // ==========================================
+        function renderAmcStubs() {
+            const body     = document.getElementById('amc-body');
+            const locLabel = document.getElementById('amc-location-label');
+            if (!body) return;
+
+            const tier1 = ['CA','NY','NJ','CT','MA','DC','IL'];
+            const tier2 = ['AZ','CO','FL','GA','MD','MN','NV','OH','OR','PA','TX','VA','WA'];
+
+            let ticketPrice  = 12.50;
+            let monthlyStubs = 21.99;
+
+            function doRender(label) {
+                if (locLabel) locLabel.textContent = '\U0001f4cd ' + label;
+                const annualStubs = monthlyStubs * 12;
+                const curYear     = new Date().getFullYear();
+                let seen = 0, planned = 0;
+                diary.forEach(m => {
+                    try { if (m.watchedDate && new Date(m.watchedDate).getFullYear() === curYear) seen++; } catch(e) {}
+                });
+                watchlist.forEach(m => {
+                    try {
+                        const rd = m.releaseDate || m.release_date;
+                        if (rd && new Date(rd).getFullYear() === curYear) planned++;
+                    } catch(e) {}
+                });
+                const total        = seen + planned;
+                const spentSoFar   = seen     * ticketPrice;
+                const projected    = planned  * ticketPrice;
+                const totalSpend   = spentSoFar + projected;
+                const savings      = totalSpend - annualStubs;
+                const isWorthIt    = savings > 0;
+                const breakEven    = Math.ceil(annualStubs / ticketPrice);
+                const moviesNeeded = Math.max(0, breakEven - total);
+                const fmt = n => '$' + n.toFixed(2);
+                body.innerHTML = `
+                    <div style="text-align:center;color:#555;font-size:0.68rem;letter-spacing:1px;margin-bottom:14px;">BASED ON ${label.toUpperCase()} PRICING \u2014 $${ticketPrice.toFixed(2)}/TICKET</div>
+                    <div style="display:flex;justify-content:space-evenly;text-align:center;margin-bottom:16px;">
+                        <div>
+                            <div style="color:#666;font-size:0.65rem;font-weight:bold;letter-spacing:1px;">SEEN</div>
+                            <div style="color:#fff;font-size:1.6rem;font-weight:900;line-height:1.1;">${seen}</div>
+                            <div style="color:#666;font-size:0.72rem;">${fmt(spentSoFar)}</div>
+                        </div>
+                        <div style="width:1px;background:#2a2a2a;"></div>
+                        <div>
+                            <div style="color:#666;font-size:0.65rem;font-weight:bold;letter-spacing:1px;">PLANNED</div>
+                            <div style="color:#fff;font-size:1.6rem;font-weight:900;line-height:1.1;">${planned}</div>
+                            <div style="color:#666;font-size:0.72rem;">${fmt(projected)}</div>
+                        </div>
+                        <div style="width:1px;background:#2a2a2a;"></div>
+                        <div>
+                            <div style="color:#666;font-size:0.65rem;font-weight:bold;letter-spacing:1px;">TOTAL</div>
+                            <div style="color:var(--primary);font-size:1.6rem;font-weight:900;line-height:1.1;">${total}</div>
+                            <div style="color:#666;font-size:0.72rem;">${fmt(totalSpend)}</div>
+                        </div>
+                    </div>
+                    <hr style="border-color:#222;margin:0 0 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <span style="color:#aaa;font-size:0.8rem;">A-List Annual Cost ($${monthlyStubs.toFixed(2)}/mo):</span>
+                        <span style="color:#fff;font-weight:bold;">${fmt(annualStubs)}</span>
+                    </div>
+                    <div style="background:${isWorthIt ? 'rgba(52,168,83,0.1)' : 'rgba(245,197,24,0.08)'};border:1px solid ${isWorthIt ? '#34A853' : '#f5c518'};border-radius:8px;padding:12px;display:flex;align-items:flex-start;gap:10px;">
+                        <span style="font-size:1.3rem;flex-shrink:0;">${isWorthIt ? '\u2705' : '\u2139\ufe0f'}</span>
+                        <div>
+                            <div style="color:${isWorthIt ? '#34A853' : '#f5c518'};font-size:0.72rem;font-weight:bold;letter-spacing:1px;">${isWorthIt ? 'WORTH IT!' : 'NOT QUITE YET'}</div>
+                            <div style="color:#ddd;font-size:0.82rem;margin-top:3px;">${isWorthIt
+                                ? `You'll save <b>${fmt(savings)}</b> this year vs. paying per ticket.`
+                                : `See <b>${moviesNeeded}</b> more movie${moviesNeeded !== 1 ? 's' : ''} to break even.`}</div>
+                        </div>
+                    </div>`;
+            }
+
+            if (navigator.geolocation) {
+                if (locLabel) locLabel.textContent = '\U0001f4cd Detecting\u2026';
+                navigator.geolocation.getCurrentPosition(pos => {
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            const stateRaw = (data.address?.state_code || data.address?.ISO3166_2_lvl4 || '').replace(/^US-/,'').toUpperCase().slice(0,2);
+                            const city     = data.address?.city || data.address?.town || data.address?.county || 'Your Area';
+                            if (tier1.includes(stateRaw))      { ticketPrice = 18.50; monthlyStubs = 25.99; }
+                            else if (tier2.includes(stateRaw)) { ticketPrice = 15.00; monthlyStubs = 23.99; }
+                            else                                { ticketPrice = 12.50; monthlyStubs = 21.99; }
+                            doRender(city + (stateRaw ? ', ' + stateRaw : ''));
+                        })
+                        .catch(() => doRender('Your Area'));
+                }, () => doRender('Default Pricing'));
+            } else {
+                doRender('Default Pricing');
+            }
+        }
+
         // INITIALIZE
         // ==========================================
         window.onload = () => {
@@ -4580,6 +4847,7 @@
             fetchRereleases();
             initGoogleAuth();
             initFirebase(); // 🔥 Initialize Firebase last
+            updateOnlineStatus(); // check connectivity on load
         };
     </script>
 </body>
