@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movie Tracker – Privacy Policy</title>
+<style>
+  :root { --bg:#ffffff; --fg:#1b1b1f; --muted:#5d5d66; --accent:#e50914; --rule:#e3e3e8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121212; --fg:#ececf1; --muted:#a0a0aa; --rule:#2c2c32; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:17px/1.65 Georgia, "Times New Roman", serif; }
+  main { max-width:42rem; margin:0 auto; padding:3rem 1.25rem 4rem; }
+  h1 { font:700 2rem/1.2 system-ui, -apple-system, "Segoe UI", sans-serif; margin:0 0 .25rem; }
+  h2 { font:700 1.2rem/1.3 system-ui, -apple-system, "Segoe UI", sans-serif;
+       margin:2.25rem 0 .5rem; padding-top:1.25rem; border-top:1px solid var(--rule); }
+  p, li { margin:.5rem 0; }
+  .meta { color:var(--muted); font-family:system-ui, sans-serif; font-size:.9rem; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Movie Tracker Privacy Policy</h1>
+  <p class="meta">Last updated October 1, 2026</p>
+
+  <p>Movie Tracker is a personal Android app for logging movies, keeping a watchlist, and storing movie tickets. This page explains what data the app uses and what it does with it.</p>
+
+  <h2>What the app stores</h2>
+  <p>Your diary entries (movies, ratings, watched dates, optional photos), watchlist, tickets, and movie night plans are saved on your device. If you sign in, they are also synced to a private Firebase account that belongs to you, so they are available if you reinstall the app. Friends you add can see only what you choose to share with them in the app.</p>
+
+  <h2>Gmail access</h2>
+  <p>If you choose to connect Gmail, the app asks for read-only access (the <code>gmail.readonly</code> permission). It is used for one purpose: finding ticket confirmation emails from movie theaters so the app can add those tickets for you.</p>
+  <ul>
+    <li>The app searches only for emails from known movie theater senders.</li>
+    <li>Emails are read on your device. They are not sent to any server operated by the developer.</li>
+    <li>From each ticket email, the app saves only the movie title, theater, date, time, seat, confirmation number, and QR code image. The rest of the email is discarded.</li>
+    <li>The app never sends, deletes, or changes any email.</li>
+    <li>Gmail data is not sold, shared with third parties, used for advertising, or used to train AI models.</li>
+  </ul>
+  <p>The app's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+  <h2>Disconnecting and deleting your data</h2>
+  <p>You can disconnect Gmail at any time from the Tickets tab in the app, or by removing Movie Tracker at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To delete the data stored in your account, delete the individual entries in the app or contact the address below and your account data will be removed.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy: <a href="mailto:01ddgodwin@gmail.com">01ddgodwin@gmail.com</a></p>
+</main>
+</body>
+</html>
